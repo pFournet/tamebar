@@ -1,0 +1,31 @@
+name: macOS checks
+# Manual only: run it from the Actions tab.
+on: workflow_dispatch
+concurrency:
+  group: ci
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  checks:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install media test dependency
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew install ffmpeg
+      - name: Typecheck, test and lint
+        run: ./scripts/check.sh
+      - name: Package app and verify signature
+        env:
+          TAMEBAR_SIGNING_IDENTITY: "-"
+        run: |
+          ./scripts/build-app.sh
+          ditto -c -k --sequesterRsrc --keepParent dist/Tamebar.app dist/Tamebar-ci.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Tamebar-development
+          path: dist/Tamebar-ci.zip
+          if-no-files-found: error
+          retention-days: 14

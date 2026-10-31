@@ -1,0 +1,194 @@
+# Architecture
+
+Tamebar is a SwiftPM macOS app. Its one external package is [Sparkle](https://github.com/sparkle-project/Sparkle),
+used by `AppUpdateController` for signed updates in release builds; development builds carry no feed key and never
+update themselves.
+The `Tamebar` target in `Sources/Tamebar` builds the executable; tests live in `Tests/TamebarTests`.
+
+## Main experience
+
+- `BlitzDashboardView`: one window for Overview, Memory, CPU, Storage, Revive apps, Projects, and Settings.
+- `BlitzStorageView`: Browse (the default), Inventory, and Cleanup, without nested tabs.
+- `FolderExplorerView` / `FolderExplorerModel`: clickable directory rows, navigation history,
+  asynchronous listings and recursive sizes, and reviewed Move to Trash.
+- `BlitzDesign`: shared buttons, search fields, and neutral selection controls.
+- `BlitzTrayView`: compact live status and actions. Opening it never starts a disk scan.
+- `SystemMonitor`: two-second host CPU/VM samples; bounded CPU and memory histories.
+- `CPUProcessReader`: per-process CPU deltas from `proc_pid_rusage`, with process-start identity checks.
+- `MemoryControlView`: apps and AI sessions, direct normal Quit, inline Force Quit review, and pressure history.
+- `AppRecoveryModel`: current macOS app roster, expiring health checks, independent recovery, and recent crashes.
+- `QuickCleanModel` / `CacheCleaner`: bounded allowlist scan, age and activity checks, reviewed cache deletion.
+- `LargeFileReviewView`: persistent file review, media filters, and identity-checked Move to Trash.
+- `MediaDuplicateScanner`: size bucketing and streaming SHA-256, excluding hard links.
+- `MediaExportEngine`: isolated FFmpeg staging, stream checks, full output decode, and unique final names.
+- `MediaLibraryModel`: shared in-flight operations across navigation, with bounded export history.
+
+## Developer tools
+
+Projects owns server/worker controls; Storage Cleanup owns worktrees, dependencies, Docker, and rebuildable data.
+Memory owns pressure history and AI sessions, while Storage Browse owns directory and large-file review.
+
+These tools share the dashboard instead of opening a separate developer window.
+Deeper scanners run on demand or under their own refresh policies.
+
+## Safety boundaries
+
+Cache trees are fingerprinted from file identity, size, type, and modification metadata.
+Symlinks and special files are rejected. The exact direct-child target, internal volume,
+running owner tools, open files, and the fingerprint are checked again before deletion.
+A failed or incomplete check preserves the candidate and produces a visible explanation.
+A small filesystem race remains between final validation and removal. Deletion runs as the current user,
+without privileges or hardening against a deliberate attacker.
+
+Every removal ends in `RemovalGate`, on top of each feature's own checks. It refuses paths that are not
+absolute and plain, items under a linked folder, home, system, volume and Git roots, read-only volumes,
+and items whose device and inode changed since review. Each refusal carries the reason shown in the UI.
+Every signal to another process goes through `ProcessSignal`, which requires the same PID, start time,
+executable and owner as the scanned instance, and resumes a stopped process after SIGTERM so it can quit.
+Short-lived commands run through `CommandRunner`, with a deadline, an output cap, and tree-kill on timeout.
+
+Personal-file review rechecks inode, device, size, nanosecond modification time, and allowed roots.
+Storage Browse and its largest-file review use Trash. Separate developer workflows keep their reviewed deletion policies.
+
+RAM release revalidates PID, bundle identity, launch date, protection policy, and foreground activity.
+It sends a normal quit request, waits for the app, respects save dialogs, and samples actual available RAM.
+No memory-pressure allocation tricks or forced purges are implemented.
+
+## Persistence
+
+Local files live in `~/Library/Application Support/Tamebar`, built through `AppData`; the e2e build
+uses `Tamebar-e2e`. On the installed app's first launch, `BrandMigration` copies BlitzClean's
+`com.blitzreels.BlitzClean` preference domain and its `~/Library/Application Support/BlitzClean` files
+once, without overwriting anything Tamebar already has, and skips lock files and `reports/`.
+BlitzClean's data is never moved, deleted or changed, so both apps can run side by side.
+Cleanup reports are also imported in place from `BlitzClean/reports`, read-only.
+Navigation and selected storage tab use UserDefaults. File review is an atomic JSON snapshot
+beside the cleanup ledger (8 MiB / 5,000 files maximum), with filters saved separately.
+The chart store keeps two-second samples for 15 minutes and five-minute points for seven days.
+It is capped at 1 MiB, and the week-long chart is reduced to about 450 visible points.
+Export history keeps at most 100 entries / 512 KiB. Incident history retains at most 1,440 events
+from the last 24 hours; cleanup history keeps 1,000 records. JSON files use owner-only permissions.
+No local incident log, preference export, build artifact, or machine screenshot belongs in Git.
+
+## Media processing
+
+The legacy narrow scanner remains for existing cleanup callers. Largest files uses `DriveFileScanner`: native
+FTS metadata traversal with physical paths, no symlink following, and one filesystem per explicit root. Boot system
+and Data roots are included separately; mounted external local drives are included. A single utility worker
+round-robins roots in 2,048-entry batches and publishes at most about every 750 ms. A min-heap retains the largest
+5,000 files in bounded memory. Scans are cancellable, include hidden/package/dependency trees, and report unreadable
+locations. There is no 20-second or 80,000-entry cutoff in this mode. Stale/empty legacy snapshots migrate to the
+new all-drive scope; nonempty snapshots are refreshed after an hour. Large saved lists revalidate off the main actor.
+
+Content comparison is cancellable, reads 1 MiB chunks, and stops after two minutes.
+The selected file's identity is checked before and after hashing. It detects exact copies only;
+visually similar edits and separately encoded versions of a recording do not match.
+
+FFmpeg and FFprobe are discovered in Homebrew or standard binary locations, with no automatic installation.
+Inputs must pass identity and open-file checks. Each export uses its own hidden staging directory,
+keeps originals, limits codec threads, checks free space, and terminates on cancellation or app quit.
+Successful exports pass stream/duration checks and a complete decode before moving to a unique name.
+SDR MP4 uses H.264 CRF 23 and AAC; image choices are JPEG quality 2 or lossless PNG.
+Joining uses FFmpeg's [concat demuxer](https://ffmpeg.org/ffmpeg-formats.html#concat)
+with matching stream signatures and controlled relative manifest entries. Mixed formats are rejected.
+Completed jobs persist; interrupted encoding jobs are not resumed.
+
+## Verification
+
+`./scripts/check.sh` builds/typechecks, runs Swift Testing suites, lints Swift,
+validates property lists, and checks shell syntax.
+`./scripts/build-app.sh` produces and verifies a release app bundle.
+`./scripts/package-release.sh` builds both Mac architectures and packages them as a DMG: an ad-hoc
+signed preview by default, or Developer ID signed and notarized when configured; see [Releasing](RELEASING.md).
+`./script/build_and_run.sh --verify` installs, launches, and verifies the process.
+
+Tests exercise CPU deltas and PID reuse, bounded histories, launch routing, cache identity,
+symlink refusal, recent/open-file protection, successful fixture deletion, app protection,
+worktree/dependency safety, and the existing developer features.
+
+## Pressure prevention
+
+`PressureSentinel` samples memory pressure, compression, swap, real free disk capacity and CPU every two seconds
+on a serial queue independent of SwiftUI. It identifies the limiting resource, forecasts a shrinking disk reserve,
+and posts rate-limited notifications through the existing notification permission. It runs inside the app,
+so it stops during a kernel stall, suspension, or app termination.
+
+`DevProcessScanner` reads working directories with `proc_pidinfo`, uses bounded three-second process/port commands,
+and resolves project ancestry off the main actor. The UI reuses the resulting directory map and groups workers
+without listening ports with their project. Scans expose incomplete results instead of claiming full coverage.
+
+`LeftoverProcessFinder` reads the same snapshot for processes parented to launchd that it does not manage.
+It needs no extra process reads; it runs `launchctl list` (three-second limit) only when there are candidates,
+and shows nothing when that command fails. `LeftoverProcessStopper` checks the start identity, executable,
+owner, launchd parent, and Keep running policy again immediately before it sends SIGTERM or SIGKILL.
+
+Projects offer Pause/Resume and a per-project opt-in for automatic pausing after sustained pressure.
+Automatic actions use a recent identity-checked process snapshot, protect Keep running projects and AI/tool sessions,
+and pause at most one eligible project per 30 seconds. Pause sends SIGSTOP to the eligible project runtimes;
+it prevents further CPU work but does not release their existing RAM. Resume is always explicit.
+The guard never automatically kills apps or deletes data. A stopped project can be resumed from Projects after relaunch.
+
+`pressure-latest.json` retains up to 240 pressure samples/actions and top project summaries across app restarts,
+with owner-only permissions and no process arguments or credentials. This local incident trace survives the app UI
+becoming busy; it cannot prove which process caused a kernel panic. macOS crash reports remain the authority.
+
+Individual Quit/Stop actions run without a Tamebar confirmation. Native application save dialogs still appear.
+Manual project Stop validates PID, owner, start identity, executable, and Keep running protection;
+it sends SIGTERM and resumes stopped workers to deliver that signal. It never escalates to SIGKILL automatically.
+Auto-pause remains opt-in and never invokes Stop.
+
+`WorkloadControl` expands validated process identities through a native `proc_listallpids` parent tree.
+It signals supervisors before descendants, discovers newly created children, and verifies the observed result.
+Manual controls include project runtimes launched by agents; automatic suspension still excludes AI-owned PIDs.
+Project shutdown checks a fresh project snapshot for surviving or respawned workers.
+
+`--emergency-controls` enters an AppKit-only process before constructing any SwiftUI models.
+Packaged builds embed a separately signed `Tamebar Emergency.app` with its own bundle identity,
+using the same binary as `TamebarRescue` and the parent's Sparkle framework.
+The installed app starts it before dashboard initialization; it exits if the parent identity changes or exits.
+Its Carbon hotkey and UI use their own event loop. Inventory sampling and control actions run off that loop.
+The inventory uses native identities, memory footprints, and working directories; it spawns no inspection commands.
+Shared-host worker groups remain heuristic; distinct known directories cannot enter the same launch-time cluster.
+The explicitly labeled shared Codex app target is separate and requires confirmation.
+
+`DockerProjectService` pins a validated local Unix endpoint and rechecks full container IDs, creation time and labels.
+Stop uses an unlimited Docker grace period with a bounded client wait, preserving containers and database volumes.
+Labels and explicit assignments merge containers into Projects; missing ownership stays separate.
+Dashboard scans back off to twelve seconds under pressure, and unchanged process arrays are not republished.
+
+## Live app recovery
+
+The recovery view merges the current NSWorkspace roster with matching cached memory measurements.
+An app is actionable before RAM scanning finishes; launch/exit notifications and a two-second loop refresh the roster.
+
+Health checks expire after two seconds, with at most eight concurrent window probes.
+Each Accessibility message times out after 0.5 seconds; two failed observations are required for an unresponsive result.
+
+Native identity validation uses the PID, owner, launch identity, and bundle before sending SIGCONT.
+Resume and termination use separate eligibility rules. Built-in user apps are available for resume; their
+existing Quit and Force Quit protections remain intact, and core macOS services stay excluded.
+Recovery verifies the result within a bounded observation loop and never restarts a responsive app.
+
+New health supersedes conflicting recovery results, and a completed attempt does not impose a retry lock.
+Crash-report discovery is throttled to at most once per 30 seconds; the per-app Force Quit path keeps its inline review.
+
+## Storage scan scopes and profiling
+
+Overview and Cleanup use the cleanup scope. The full inventory is requested by Inventory only, with its own
+freshness timestamp; an inventory request made during a cleanup scan is queued. Cleanup merges its measured
+categories into the cached inventory instead of dropping untouched inventory sections.
+`DependencyFileScan` discovers folders with native FTS traversal, prunes nested dependencies, and removes
+redundant scan roots. At most four workers collect allocated and apparent sizes together, deduplicating hard links
+within each target and never following symlinks. Unreadable targets are excluded from measured cleanup results.
+Project activity traversal skips generated trees and returns Unknown on budget exhaustion or read failure.
+`PerformanceBenchmarks` is an opt-in read-only harness; see [Performance](PERFORMANCE.md) for commands and results.
+
+## Dashboard audit
+
+`DashboardAuditModel` owns the user-triggered audit in `BlitzDashboardView`, so leaving Overview does not restart
+or lose work. It coordinates existing scanners without adding background polling when idle, publishes each
+completed check separately, and rejects overlapping audits. `AuditProgress` keeps unavailable and incomplete
+checks explicit. `AuditFindings` derives ranked, typed actions; previous-run values are gated on check completion.
+`OverviewCleanCard` renders the initial, checking, finding, quiet, and cleanup-result states from one presentation.
+`StorageCleanupFocus` routes a recommendation to its owning cleanup section. Cache removal still goes through
+`QuickCleanModel`; the dashboard retains its outcome while rechecking the Mac and refreshing disk measurements.
