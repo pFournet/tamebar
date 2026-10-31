@@ -1,0 +1,465 @@
+.github/ISSUE_TEMPLATE/bug_report.yml
+  s_8157103bb20410::t_fe4c87f82aff46 1-80
+.github/ISSUE_TEMPLATE/config.yml
+  s_8157103bb20410::t_3824644cf9d62c 1
+.github/ISSUE_TEMPLATE/feature_request.yml
+  s_8157103bb20410::t_fa3b98b5194fb8 1-46
+.github/PULL_REQUEST_TEMPLATE.md
+  s_8157103bb20410::t_24620a1f2c46b8 1-26
+.github/labels.json
+  s_8157103bb20410::t_dfe9acb419a338 1-92
+.github/release.yml
+  s_8157103bb20410::t_3263477b450c5d 1-28
+.github/workflows/ci.yml
+  s_8157103bb20410::t_8fc09bf6de8c71 1-31
+.gitignore
+  s_8157103bb20410::t_d563ef58642ebf 1-16
+.swift-format
+  s_8157103bb20410::t_e0d44d638e26b9 1-7
+AGENTS.md
+  s_8157103bb20410::t_e8662e7337ce93 1-15
+CHANGELOG.md
+  s_8157103bb20410::t_61b913dbbc9ab1 1-235
+CONTRIBUTING.md
+  s_8157103bb20410::t_7f2b1d8beced6a 1-84
+LICENSE
+  s_8157103bb20410::t_89a03232390783 1-23
+OPEN_SOURCE_BASES.md
+  s_8157103bb20410::t_269a9f441303f1 1-53
+Package.resolved
+  s_8157103bb20410::t_147c7f1b0503ad 1-15
+Package.swift
+  s_8157103bb20410::t_cf4d6030609fd3 1-22
+README.md
+  s_8157103bb20410::t_ea026d462cc14d 1-19
+SECURITY.md
+  s_8157103bb20410::t_374a04d1aaae3f 1-22
+Sources/Tamebar/AIThreadNames.swift
+  s_8157103bb20410::t_c1f2eec5d4e188 1-317
+Sources/Tamebar/AIThreads.swift
+  s_8157103bb20410::t_c3648b988e9923 1-441
+Sources/Tamebar/AgentStatusProbe.swift
+  s_8157103bb20410::t_6a57ca0e05225b 1-187
+Sources/Tamebar/AppBrand.swift
+  s_8157103bb20410::t_f8742e29f4cf18 1-59
+Sources/Tamebar/AppData.swift
+  s_8157103bb20410::t_721609906e0452 1-94
+Sources/Tamebar/AppLifetime.swift
+  s_8157103bb20410::t_5b6568ea719816 1-44
+Sources/Tamebar/AppPressure.swift
+  s_8157103bb20410::t_38131f3b846661 1-335
+Sources/Tamebar/AppPressureWiring.swift
+  s_8157103bb20410::t_3bc26988082bbb 1-262
+Sources/Tamebar/AppSlow.swift
+  s_8157103bb20410::t_3feb0c68714cf1 1-327
+Sources/Tamebar/AppUpdateController.swift
+  s_8157103bb20410::t_4fc71d1d607b8d 1-268
+Sources/Tamebar/ApplicationIcon.swift
+  s_8157103bb20410::t_83eccceb1c4919 1-77
+Sources/Tamebar/AppsUnderPressure.swift
+  s_8157103bb20410::t_d8018170c834b0 1-138
+Sources/Tamebar/AskAgent.swift
+  s_8157103bb20410::t_72898e962ff872 1-176
+Sources/Tamebar/AutoEnd.swift
+  s_8157103bb20410::t_22d57679055274 1-438
+Sources/Tamebar/AutoPause.swift
+  s_8157103bb20410::t_de083752874f26 1-343
+Sources/Tamebar/AutoPauseWiring.swift
+  s_8157103bb20410::t_e4e2d18be28b53 1-1021
+Sources/Tamebar/AutomaticActionsView.swift
+  s_8157103bb20410::t_0f19e797a87d79 1-344
+Sources/Tamebar/AutomaticSafety.swift
+  s_8157103bb20410::t_57db5a11130147 1-121
+Sources/Tamebar/BackgroundPriority.swift
+  s_8157103bb20410::t_e4b6bd4462aa3b 1-592
+Sources/Tamebar/BlitzComponents.swift
+  s_8157103bb20410::t_df3f2ec85e7945 1-28
+Sources/Tamebar/BlitzDesign.swift
+  s_8157103bb20410::t_36f05e200c72a7 1-380
+Sources/Tamebar/BlitzVisuals.swift
+  s_8157103bb20410::t_583bee10d5bb22 1-16
+Sources/Tamebar/BrandMigration.swift
+  s_8157103bb20410::t_d258e460902e0c 1-47
+Sources/Tamebar/ByteText.swift
+  s_8157103bb20410::t_117b8a032ae4b1 1-32
+Sources/Tamebar/CLI.swift
+  s_8157103bb20410::t_c88b306ce29024 1-449
+Sources/Tamebar/CLILive.swift
+  s_8157103bb20410::t_36ec217fac85a1 1-107
+Sources/Tamebar/CLIReport.swift
+  s_8157103bb20410::t_738a074197dd89 1-919
+Sources/Tamebar/CLIText.swift
+  s_8157103bb20410::t_9f4d261a633d07 1-365
+Sources/Tamebar/CLITrend.swift
+  s_8157103bb20410::t_742d6e1528ee44 1-357
+Sources/Tamebar/CalendarMeetings.swift
+  s_8157103bb20410::t_5ea1c0c63db46e 1-158
+Sources/Tamebar/CallSignals.swift
+  s_8157103bb20410::t_deedc3e0672570 1-236
+Sources/Tamebar/CodexTrim.swift
+  s_8157103bb20410::t_cedd0b1689c8dd 1-866
+Sources/Tamebar/CommandRunner.swift
+  s_8157103bb20410::t_95a9b857d920ce 1-155
+Sources/Tamebar/DevProcessModel.swift
+  s_8157103bb20410::t_cacbfd54d1409b 1-1726
+Sources/Tamebar/DevProcessScanner.swift
+  s_8157103bb20410::t_0e1a8c7291241c 1-184
+Sources/Tamebar/DevProcesses.swift
+  s_8157103bb20410::t_4ae383e649aa83 1-317
+Sources/Tamebar/DeveloperCommand.swift
+  s_8157103bb20410::t_1c1695c27c275a 1-25
+Sources/Tamebar/DiskGuard.swift
+  s_8157103bb20410::t_bc0658fe5bd3af 1-148
+Sources/Tamebar/DurationText.swift
+  s_8157103bb20410::t_98d2d682cd95f0 1-12
+Sources/Tamebar/E2EMode.swift
+  s_8157103bb20410::t_b83aeddc178022 1-513
+Sources/Tamebar/EmergencyControls.swift
+  s_8157103bb20410::t_cd047216f53c34 1-392
+Sources/Tamebar/EmergencyInventory.swift
+  s_8157103bb20410::t_909456b0023b27 1-101
+Sources/Tamebar/EndedSessions.swift
+  s_8157103bb20410::t_59633bb67a20fc 1-97
+Sources/Tamebar/Entry.swift
+  s_8157103bb20410::t_9dead4c03091d7 1-29
+Sources/Tamebar/FanReader.swift
+  s_8157103bb20410::t_c64d87cb860274 1-112
+Sources/Tamebar/GoogleCalendarMeetings.swift
+  s_8157103bb20410::t_528a0830af375d 1-328
+Sources/Tamebar/GoogleCalendarSettings.swift
+  s_8157103bb20410::t_8b21f9e3a2dd09 1-99
+Sources/Tamebar/GoogleOAuth.swift
+  s_8157103bb20410::t_884d19fb1040cd 1-352
+Sources/Tamebar/Heat.swift
+  s_8157103bb20410::t_cfd4ca5615144b 1-93
+Sources/Tamebar/HeavyChildren.swift
+  s_8157103bb20410::t_556bb02885ea9d 1-125
+Sources/Tamebar/Island.swift
+  s_8157103bb20410::t_4aca3ef9c594d4 1-348
+Sources/Tamebar/IslandCard.swift
+  s_8157103bb20410::t_4a95bc75cdca46 1-284
+Sources/Tamebar/IslandCardPanel.swift
+  s_8157103bb20410::t_52165d0e0600a3 1-429
+Sources/Tamebar/IslandCardViews.swift
+  s_8157103bb20410::t_70edb135973782 1-310
+Sources/Tamebar/IslandPanel.swift
+  s_8157103bb20410::t_ee428671dfb339 1-390
+Sources/Tamebar/IslandViews.swift
+  s_8157103bb20410::t_aaba73b4fab445 1-86
+Sources/Tamebar/Keychain.swift
+  s_8157103bb20410::t_ac745d24f7e096 1-69
+Sources/Tamebar/LaunchAtLoginController.swift
+  s_8157103bb20410::t_06258a970f582d 1-32
+Sources/Tamebar/LeftoverProcesses.swift
+  s_8157103bb20410::t_e2b870cee58fd3 1-183
+Sources/Tamebar/MeetingMonitor.swift
+  s_8157103bb20410::t_32c0f7ffa32da1 1-143
+Sources/Tamebar/Meetings.swift
+  s_8157103bb20410::t_1017b15370ece9 1-125
+Sources/Tamebar/MemoryGuard.swift
+  s_8157103bb20410::t_3699884991d851 1-179
+Sources/Tamebar/MemoryRescue.swift
+  s_8157103bb20410::t_f9e5222ba24d12 1-320
+Sources/Tamebar/MemoryRescueModel.swift
+  s_8157103bb20410::t_d1c23626acafd5 1-195
+Sources/Tamebar/MemoryStatistics.swift
+  s_8157103bb20410::t_3e809c3f2ef189 1-57
+Sources/Tamebar/MenuBarItem.swift
+  s_8157103bb20410::t_82f12fa80f6581 1-607
+Sources/Tamebar/NotchGeometry.swift
+  s_8157103bb20410::t_aafaa64785d5f2 1-174
+Sources/Tamebar/PanelStyle.swift
+  s_8157103bb20410::t_0474714e3dce1b 1-82
+Sources/Tamebar/Permissions.swift
+  s_8157103bb20410::t_a5ba33e1eb062e 1-102
+Sources/Tamebar/Presence.swift
+  s_8157103bb20410::t_3ab82497af5545 1-69
+Sources/Tamebar/PressureEnd.swift
+  s_8157103bb20410::t_8e90aeb1c53627 1-209
+Sources/Tamebar/PressurePrevention.swift
+  s_8157103bb20410::t_906a87684ae1f9 1-360
+Sources/Tamebar/ProcessActivity.swift
+  s_8157103bb20410::t_b18568ab8baf18 1-71
+Sources/Tamebar/ProcessInstance.swift
+  s_8157103bb20410::t_a74e956374a419 1-35
+Sources/Tamebar/ProcessSignal.swift
+  s_8157103bb20410::t_1d6869209d38e4 1-45
+Sources/Tamebar/ProjectProcesses.swift
+  s_8157103bb20410::t_8ef5d769fe13cb 1-165
+Sources/Tamebar/ResourceConsumers.swift
+  s_8157103bb20410::t_9765b3fbf15d14 1-97
+Sources/Tamebar/ResourceHistory.swift
+  s_8157103bb20410::t_5a45a812f49cf3 1-304
+Sources/Tamebar/ResourceHistoryStore.swift
+  s_8157103bb20410::t_8064f06a854e83 1-46
+Sources/Tamebar/ResourceOwnership.swift
+  s_8157103bb20410::t_fc99fecbfd4ab5 1-200
+Sources/Tamebar/SavedSettings.swift
+  s_8157103bb20410::t_18049be507584b 1-55
+Sources/Tamebar/SequenceTop.swift
+  s_8157103bb20410::t_1aac0832ac4026 1-21
+Sources/Tamebar/SessionKeeps.swift
+  s_8157103bb20410::t_406d92477ee6f6 1-49
+Sources/Tamebar/ShowSurfaces.swift
+  s_8157103bb20410::t_9ebfe6c2b812de 1-56
+Sources/Tamebar/ShowTamebarIn.swift
+  s_8157103bb20410::t_acaaf2ef05c3bb 1-77
+Sources/Tamebar/StartGate.swift
+  s_8157103bb20410::t_9f03c584da37a9 1-79
+Sources/Tamebar/StartHooks.swift
+  s_8157103bb20410::t_b694002cc1f5e3 1-498
+Sources/Tamebar/StartWait.swift
+  s_8157103bb20410::t_7a3d6396ee5fbc 1-409
+Sources/Tamebar/StoppedListView.swift
+  s_8157103bb20410::t_1e399152e4bbc5 1-163
+Sources/Tamebar/StoppedLog.swift
+  s_8157103bb20410::t_cec29bdb68be0a 1-423
+Sources/Tamebar/Strain.swift
+  s_8157103bb20410::t_d0bac57e970cf9 1-196
+Sources/Tamebar/SystemMonitor.swift
+  s_8157103bb20410::t_e25084e11c8e84 1-415
+Sources/Tamebar/TamebarApp.swift
+  s_8157103bb20410::t_2bcc6dcba0bada 1-147
+Sources/Tamebar/TamebarWindow.swift
+  s_8157103bb20410::t_8ffc4554315c9f 1-215
+Sources/Tamebar/TerminalLauncher.swift
+  s_8157103bb20410::t_3ba648b9c25082 1-30
+Sources/Tamebar/UnusedPolicy.swift
+  s_8157103bb20410::t_5ae04dac6cab85 1-128
+Sources/Tamebar/UnusedServers.swift
+  s_8157103bb20410::t_7c15d509e5c09e 1-486
+Sources/Tamebar/UsageComparison.swift
+  s_8157103bb20410::t_6c1586e42cd4dd 1-187
+Sources/Tamebar/UsageMarkers.swift
+  s_8157103bb20410::t_c328aed6e64e63 1-141
+Sources/Tamebar/UsageRecorder.swift
+  s_8157103bb20410::t_8d555461978271 1-135
+Sources/Tamebar/UsageTrend.swift
+  s_8157103bb20410::t_ed28d03a3f54f0 1-561
+Sources/Tamebar/UsageTrendCard.swift
+  s_8157103bb20410::t_e7069150abebb1 1-211
+Sources/Tamebar/WorkQueue.swift
+  s_8157103bb20410::t_87d8734079432b 1-99
+Sources/Tamebar/WorkloadControl.swift
+  s_8157103bb20410::t_c60d24a811e7e3 1-135
+Sources/Tamebar/WorkspaceControl.swift
+  s_8157103bb20410::t_43a1ce3f2ce1b1 1-169
+Tests/TamebarTests/AIThreadNamesTests.swift
+  s_8157103bb20410::t_900ba03417c117 1-363
+Tests/TamebarTests/AIThreadsTests.swift
+  s_8157103bb20410::t_be8b03b55f46cf 1-289
+Tests/TamebarTests/AgentProcRegistry.swift
+  s_8157103bb20410::t_5343b945a5d23f 1-247
+Tests/TamebarTests/AgentStatusProbeTests.swift
+  s_8157103bb20410::t_18bb423a569810 1-299
+Tests/TamebarTests/AppPressureTests.swift
+  s_8157103bb20410::t_bc8c2ebbdeac21 1-930
+Tests/TamebarTests/AppSlowTests.swift
+  s_8157103bb20410::t_06c9e35ad3b855 1-563
+Tests/TamebarTests/AppUpdateControllerTests.swift
+  s_8157103bb20410::t_b4d4ebdf0fe373 1-101
+Tests/TamebarTests/AskAgentTests.swift
+  s_8157103bb20410::t_cbf176cb45ae07 1-114
+Tests/TamebarTests/AutoEndTests.swift
+  s_8157103bb20410::t_2bcd38dc9fad83 1-894
+Tests/TamebarTests/AutoPauseTests.swift
+  s_8157103bb20410::t_707c441078f1c1 1-537
+Tests/TamebarTests/AutoPauseWiringTests.swift
+  s_8157103bb20410::t_2e7571e3e2cf19 1-1653
+Tests/TamebarTests/AutomaticSafetyTests.swift
+  s_8157103bb20410::t_0b5402d87f22da 1-105
+Tests/TamebarTests/BackgroundPriorityTests.swift
+  s_8157103bb20410::t_e8297709dd7053 1-784
+Tests/TamebarTests/BrandMigrationTests.swift
+  s_8157103bb20410::t_6837f38064feba 1-148
+Tests/TamebarTests/BrandTests.swift
+  s_8157103bb20410::t_0689d177777159 1-108
+Tests/TamebarTests/CLITests.swift
+  s_8157103bb20410::t_38a12bbf3ea85f 1-818
+Tests/TamebarTests/CalendarMeetingsTests.swift
+  s_8157103bb20410::t_f4a9aa60f831a9 1-177
+Tests/TamebarTests/CodexTrimTests.swift
+  s_8157103bb20410::t_9fbc5b8e1e75a6 1-501
+Tests/TamebarTests/CommandRunnerTests.swift
+  s_8157103bb20410::t_812e4a93f994af 1-73
+Tests/TamebarTests/DesignRenderTests.swift
+  s_8157103bb20410::t_a1b46c49af5bd7 1-534
+Tests/TamebarTests/DevProcessTests.swift
+  s_8157103bb20410::t_b188c12e563c5f 1-133
+Tests/TamebarTests/DiskGuardTests.swift
+  s_8157103bb20410::t_c9636f93977fa0 1-91
+Tests/TamebarTests/E2EModeTests.swift
+  s_8157103bb20410::t_36ade40c60f5ef 1-534
+Tests/TamebarTests/EndToEndTests.swift
+  s_8157103bb20410::t_c7ce7d54f627ad 1-1691
+Tests/TamebarTests/EndedSessionRowsTests.swift
+  s_8157103bb20410::t_56b6015f6b2543 1-47
+Tests/TamebarTests/EndedSessionsTests.swift
+  s_8157103bb20410::t_aae2e1cad41413 1-165
+Tests/TamebarTests/Fixtures.swift
+  s_8157103bb20410::t_8ea03b4e8c167a 1-13
+Tests/TamebarTests/GoogleCalendarMeetingsTests.swift
+  s_8157103bb20410::t_32bd3c8f651624 1-620
+Tests/TamebarTests/GoogleCalendarParsingTests.swift
+  s_8157103bb20410::t_f48d79a9d056fe 1-158
+Tests/TamebarTests/HeatTests.swift
+  s_8157103bb20410::t_a8b66bd5556fcd 1-500
+Tests/TamebarTests/HeavyChildrenTests.swift
+  s_8157103bb20410::t_ee8ab2247fd0ab 1-421
+Tests/TamebarTests/IslandCardPanelTests.swift
+  s_8157103bb20410::t_b16c19f0d1c382 1-729
+Tests/TamebarTests/IslandCardTests.swift
+  s_8157103bb20410::t_5856198f2c904b 1-362
+Tests/TamebarTests/IslandContentTests.swift
+  s_8157103bb20410::t_4a148b15223267 1-301
+Tests/TamebarTests/IslandPanelTests.swift
+  s_8157103bb20410::t_76605567a3a879 1-320
+Tests/TamebarTests/IslandStateTests.swift
+  s_8157103bb20410::t_038608ed82e7c6 1-277
+Tests/TamebarTests/LeftoverProcessTests.swift
+  s_8157103bb20410::t_2c7b89f1560c11 1-172
+Tests/TamebarTests/MeetingMonitorTests.swift
+  s_8157103bb20410::t_49e48a059e1d09 1-193
+Tests/TamebarTests/MeetingRulesTests.swift
+  s_8157103bb20410::t_fefd571fec1cc8 1-169
+Tests/TamebarTests/MemoryGuardTests.swift
+  s_8157103bb20410::t_25b3ea9e25f7a2 1-157
+Tests/TamebarTests/MemoryRescueTests.swift
+  s_8157103bb20410::t_fa2bff9619bbf2 1-82
+Tests/TamebarTests/MenuBarItemTests.swift
+  s_8157103bb20410::t_dcd853685c19ea 1-399
+Tests/TamebarTests/MenuBarMonitoringTests.swift
+  s_8157103bb20410::t_b5fee863991bf8 1-51
+Tests/TamebarTests/NoBannersTests.swift
+  s_8157103bb20410::t_ae775434caf0f5 1-77
+Tests/TamebarTests/NotchGeometryTests.swift
+  s_8157103bb20410::t_93c2aac70bd454 1-165
+Tests/TamebarTests/PerformanceBenchmarks.swift
+  s_8157103bb20410::t_cbe9f6685d5d92 1-21
+Tests/TamebarTests/PresenceTests.swift
+  s_8157103bb20410::t_a0549f16a48e02 1-64
+Tests/TamebarTests/PressureEndTests.swift
+  s_8157103bb20410::t_d919ebb65409be 1-496
+Tests/TamebarTests/PressurePreventionTests.swift
+  s_8157103bb20410::t_08875e538f9931 1-313
+Tests/TamebarTests/ProcessActivityTests.swift
+  s_8157103bb20410::t_7dfc16ba44e9be 1-25
+Tests/TamebarTests/ProcessRefreshTests.swift
+  s_8157103bb20410::t_ca62c80318f45e 1-148
+Tests/TamebarTests/ProcessSignalTests.swift
+  s_8157103bb20410::t_6066333bb07bd8 1-51
+Tests/TamebarTests/ProjectProcessTests.swift
+  s_8157103bb20410::t_2267e50908e38f 1-47
+Tests/TamebarTests/ResourceConsumerTests.swift
+  s_8157103bb20410::t_ebd010c69015f8 1-154
+Tests/TamebarTests/RobustnessTests.swift
+  s_8157103bb20410::t_d5550646376efb 1-56
+Tests/TamebarTests/RunningNeverHeldTests.swift
+  s_8157103bb20410::t_be900c871cf0bb 1-89
+Tests/TamebarTests/SequenceTopTests.swift
+  s_8157103bb20410::t_7fdc0097f35cf8 1-18
+Tests/TamebarTests/SessionKeepsTests.swift
+  s_8157103bb20410::t_4f5523c2fffd95 1-75
+Tests/TamebarTests/ShowSurfacesTests.swift
+  s_8157103bb20410::t_2c54c553cefa74 1-78
+Tests/TamebarTests/StartHooksTests.swift
+  s_8157103bb20410::t_a1f660e6b7953f 1-288
+Tests/TamebarTests/StartWaitCLITests.swift
+  s_8157103bb20410::t_92d6410a063271 1-226
+Tests/TamebarTests/StartWaitTests.swift
+  s_8157103bb20410::t_cdd52515bdc520 1-242
+Tests/TamebarTests/StoppedLogTests.swift
+  s_8157103bb20410::t_64dfafcd5c1461 1-228
+Tests/TamebarTests/StrainTests.swift
+  s_8157103bb20410::t_43a8284b7028ab 1-180
+Tests/TamebarTests/SystemSnapshotTests.swift
+  s_8157103bb20410::t_5201a08c01f94d 1-194
+Tests/TamebarTests/TamebarTests.swift
+  s_8157103bb20410::t_7fdb8f21ad3226 1-95
+Tests/TamebarTests/TestDefaults.swift
+  s_8157103bb20410::t_b07c89b9d81bac 1-130
+Tests/TamebarTests/UnusedPolicyTests.swift
+  s_8157103bb20410::t_712df83b6d1cee 1-238
+Tests/TamebarTests/UnusedServersTests.swift
+  s_8157103bb20410::t_aba361c741bb5b 1-429
+Tests/TamebarTests/UsageTrendTests.swift
+  s_8157103bb20410::t_c0710d2454e8ce 1-942
+Tests/TamebarTests/WorkQueueSafetyTests.swift
+  s_8157103bb20410::t_723c2444d223fc 1-113
+Tests/TamebarTests/WorkloadControlTests.swift
+  s_8157103bb20410::t_894bee8accda35 1-127
+Tests/TamebarTests/WorkspaceControlTests.swift
+  s_8157103bb20410::t_bc5f865c18211c 1-125
+assets/brand/README.md
+  s_8157103bb20410::t_3519bda09276d2 1-22
+assets/brand/Tamebar.icon/Assets/Background.svg
+  s_8157103bb20410::t_449b8080cc69f4 1-3
+assets/brand/Tamebar.icon/Assets/Mark.svg
+  s_8157103bb20410::t_6d474d7c0d6488 1-7
+assets/brand/Tamebar.icon/icon.json
+  s_8157103bb20410::t_894b1b28e1b277 1-16
+docs/ARCHITECTURE.md
+  s_8157103bb20410::t_15a19199a7d1b4 1-194
+docs/CLI.md
+  s_8157103bb20410::t_973eed453c9684 1-493
+docs/DESIGN.md
+  s_8157103bb20410::t_559da6d14a2f87 1-1267
+docs/FEATURES.md
+  s_8157103bb20410::t_f443f8bc85f86e 1-228
+docs/INSTALL.md
+  s_8157103bb20410::t_b43d6bec01d77c 1-85
+docs/PERFORMANCE.md
+  s_8157103bb20410::t_628fbef3758918 1-156
+docs/PRIVACY.md
+  s_8157103bb20410::t_cfb9881549fd98 1-84
+docs/RELEASING.md
+  s_8157103bb20410::t_ea14ca0549bd5f 1-212
+docs/ROADMAP.md
+  s_8157103bb20410::t_287381d911f922 1-24
+install.sh
+  s_8157103bb20410::t_90b14711fa2d43 1-235
+licenses/OrphanBar-LICENSE.txt
+  s_8157103bb20410::t_5939ba8aa57951 1-21
+script/build_and_run.sh
+  s_8157103bb20410::t_9cadd4f52519b2 1-38
+scripts/build-app.sh
+  s_8157103bb20410::t_6c1fdc61cb8674 1-88
+scripts/build-icon.sh
+  s_8157103bb20410::t_34a0a9f70e0a18 1-13
+scripts/check.sh
+  s_8157103bb20410::t_b729f746085381 1-11
+scripts/e2e.sh
+  s_8157103bb20410::t_f5aba3b16f3af6 1-9
+scripts/install.sh
+  s_8157103bb20410::t_f5e1ffe42db874 1-50
+scripts/package-release.sh
+  s_8157103bb20410::t_9c4cd5fa65bc2c 1-160
+scripts/publish-tap.sh
+  s_8157103bb20410::t_0128496e12d7f6 1-113
+scripts/render-icon.swift
+  s_8157103bb20410::t_fabef2b8e3c0af 1-24
+scripts/sparkle-key.sh
+  s_8157103bb20410::t_232fb4bd7599ad 1-15
+support/Emergency-Info.plist
+  s_8157103bb20410::t_f73990d242f309 1-16
+support/Info.plist
+  s_8157103bb20410::t_0b60355dde67da 1-32
+support/Tamebar.entitlements
+  s_8157103bb20410::t_29a368ebb492ad 1-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "e54cb9bab1491f67d407460d2a44a12933d0fc7a",
+  "prompts": {},
+  "sessions": {
+    "s_8157103bb20410": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "68d95048-110d-4f77-b001-a47785f192af",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Paul FOURNET <paul.pfournet@gmail.com>"
+    }
+  }
+}
