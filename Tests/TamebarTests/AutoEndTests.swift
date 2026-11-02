@@ -254,7 +254,7 @@ extension AutoEndTests {
       claudeTmp.sessionDirectory = "/tmp"
       let resumable = thread("resumable", root: 50)
       let threads = [noID, codexHidden, notUUID, claudeTmp, resumable]
-      let candidates = AutoEndWiring.candidates(
+      let candidates = SessionEligibility.autoEndCandidates(
         .init(
           threads: threads,
           unused: Dictionary(uniqueKeysWithValues: threads.map { ($0.id, .idle(8 * day)) }),
@@ -314,7 +314,7 @@ extension AutoEndTests {
       let threads = [
         thread("job", root: 10, pids: [10, 30]), thread("quiet", root: 50),
       ]
-      let candidates = AutoEndWiring.candidates(
+      let candidates = SessionEligibility.autoEndCandidates(
         .init(
           threads: threads, unused: ["job": .idle(8 * day), "quiet": .idle(8 * day)],
           protections: [:], scope: nil, inFlight: [], records: withJob))
@@ -331,7 +331,7 @@ extension AutoEndTests {
         "idle": .idle(8 * day), "detached": .detached, "paused": .idle(8 * day),
         "acting": .idle(8 * day), "outside": .idle(8 * day), "kept": .idle(8 * day),
       ]
-      let candidates = AutoEndWiring.candidates(
+      let candidates = SessionEligibility.autoEndCandidates(
         .init(
           threads: threads + [threads[0]], unused: unused, protections: ["kept": .kept],
           scope: [10, 20, 30, 40, 60, 70], inFlight: ["acting"]))

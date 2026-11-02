@@ -213,7 +213,7 @@ extension PressureEndTests {
       _ threads: [AIThread], protections: [String: UnusedPolicy.Protection] = [:],
       scope: Set<Int32>? = nil, inFlight: Set<String> = [],
       records: [Int32: RawProcessRecord] = [:]
-    ) -> PressureEndWiring.Scan {
+    ) -> SessionEligibility.PressureScan {
       .init(
         now: t0, threads: threads, protections: protections, scope: scope, inFlight: inFlight,
         records: records)
@@ -233,7 +233,7 @@ extension PressureEndTests {
         thread("desktop", root: 17, tool: .codexDesktop),
         thread("kept", root: 18),
       ]
-      let candidates = PressureEndWiring.candidates(
+      let candidates = SessionEligibility.pressureCandidates(
         scan(
           threads + [threads[0]], protections: ["kept": .kept, "busy": .busy],
           scope: [10, 11, 12, 13, 14, 15, 17, 18], inFlight: ["acting"]))
@@ -252,19 +252,19 @@ extension PressureEndTests {
         10: StubWorld.record(10, parent: 1, "claude"),
         11: StubWorld.record(11, parent: 10, "sleep 3600"),
       ]
-      let candidates = PressureEndWiring.candidates(
+      let candidates = SessionEligibility.pressureCandidates(
         scan(
           [thread("job", root: 10, pids: [10, 11]), thread("quiet", root: 20)], records: records))
       #expect(candidates.map(\.id) == ["quiet"])
     }
 
     @Test func eligibleIsTwelveHoursIdleOrMoreNeverCodexDesktop() {
-      let eligible = PressureEndWiring.eligible(
+      let eligible = SessionEligibility.idleEligible(
         [
           thread("old", root: 10, idleHours: 12), thread("young", root: 11, idleHours: 11.9),
           thread("busy", root: 12, idleHours: nil),
           thread("desktop", root: 13, idleHours: 50, tool: .codexDesktop),
-        ], now: t0, lastInput: [:])
+        ], now: t0, lastInput: [:], minimum: PressureEndScheduler.minimumIdle)
       #expect(eligible == ["old": .idle(12 * hour)])
     }
 
@@ -285,21 +285,25 @@ extension PressureEndTests {
         "untouched": t0.addingTimeInterval(-15 * hour),
         "oldKeys": t0.addingTimeInterval(-30 * hour),
       ]
-      #expect(PressureEndWiring.idle(threads[0], now: t0, lastInput: lastInput) == 60)
-      #expect(PressureEndWiring.idle(threads[2], now: t0, lastInput: lastInput) == 15 * hour)
-      #expect(PressureEndWiring.idle(threads[3], now: t0, lastInput: lastInput) == 20 * hour)
-      #expect(PressureEndWiring.idle(threads[4], now: t0, lastInput: lastInput) == 13 * hour)
+      #expect(SessionEligibility.interactionIdle(threads[0], now: t0, lastInput: lastInput) == 60)
       #expect(
-        PressureEndWiring.idle(thread("busy", root: 15, idleHours: nil), now: t0, lastInput: [:])
+        SessionEligibility.interactionIdle(threads[2], now: t0, lastInput: lastInput) == 15 * hour)
+      #expect(
+        SessionEligibility.interactionIdle(threads[3], now: t0, lastInput: lastInput) == 20 * hour)
+      #expect(
+        SessionEligibility.interactionIdle(threads[4], now: t0, lastInput: lastInput) == 13 * hour)
+      #expect(
+        SessionEligibility.interactionIdle(
+          thread("busy", root: 15, idleHours: nil), now: t0, lastInput: [:])
           == nil)
       // A keystroke in the future (a clock jump) is now, never a negative idle.
       #expect(
-        PressureEndWiring.idle(
+        SessionEligibility.interactionIdle(
           threads[0], now: t0, lastInput: ["typed": t0.addingTimeInterval(30)]) == 0)
 
       var tick = scan(threads)
       tick.lastInput = lastInput
-      let candidates = PressureEndWiring.candidates(tick)
+      let candidates = SessionEligibility.pressureCandidates(tick)
       #expect(candidates.first { $0.id == "typed" }?.idle == 60)
       #expect(candidates.first { $0.id == "read" }?.idle == 11 * hour)
       // The scheduler takes the largest 12 h idle: `untouched`, never `typed` or `read`.
@@ -314,12 +318,13 @@ extension PressureEndTests {
       }
       #expect(picked == "untouched")
 
-      let eligible = PressureEndWiring.eligible(threads, now: t0, lastInput: lastInput)
+      let eligible = SessionEligibility.idleEligible(
+        threads, now: t0, lastInput: lastInput, minimum: PressureEndScheduler.minimumIdle)
       #expect(Set(eligible.keys) == ["untouched", "noTTY", "oldKeys"])
     }
 
     @Test func theNameIsTheFolder() {
-      #expect(PressureEndWiring.name(thread("Atlas", root: 10)) == "Atlas")
+      #expect(SessionEligibility.name(thread("Atlas", root: 10)) == "Atlas")
     }
 
     @MainActor final class Calls { var ids: [String] = [] }

@@ -80,40 +80,39 @@ final class DevProcessModel: ObservableObject {
   private(set) var away = false
   /// Read on every scan; a test swaps in one with its own session dictionary and idle time.
   lazy var presence = PresenceMonitor()
-  /// Ends sessions idle past N days while away (Q10). It acts only when `autoPause` does, so only
-  /// the instance holding `autopause.lock` ends anything on its own.
-  private lazy var autoEnder = AutoEndController(acts: autoPause.acts) { [weak self] thread in
-    guard let self else { return false }
-    return await endAutomatically(thread)
+  /// Q10, Q18 and Q20 share one authority, order, end slot, port clock and outcome path.
+  private lazy var automaticActions = AutomaticActionCoordinator(
+    acts: autoPause.acts, directory: AppData.directory,
+    endAutomatically: { [weak self] thread in
+      guard let self else { return false }
+      return await self.endAutomatically(thread)
+    },
+    endUnderPressure: { [weak self] thread in
+      guard let self else { return false }
+      return await self.endUnderPressure(thread)
+    },
+    endUnusedServer: { [weak self] thread in
+      guard let self else { return UnusedServerOutcome() }
+      return await self.endUnusedServer(thread)
+    },
+    emit: { [weak self] event in self?.recordAutomatic(event) })
+  /// The last connection on each served port (Q20); tests may replace the clock and its folder.
+  var portClock: ServedPortClock {
+    get { automaticActions.portClock }
+    set { automaticActions.portClock = newValue }
   }
-  /// Ends the largest session idle 12 h or more under memory pressure held 2 min, one per 2 min
-  /// (Q18). It acts only when `autoPause` does.
-  private lazy var pressureEnder = PressureEndController(acts: autoPause.acts) {
-    [weak self] thread in
-    guard let self else { return false }
-    return await endUnderPressure(thread)
+  var portClockDirectory: URL {
+    get { automaticActions.portClockDirectory }
+    set { automaticActions.portClockDirectory = newValue }
   }
-  /// Ends a session and its dev server once both have been unused 24 h (Q20). It acts only when
-  /// `autoPause` does.
-  private lazy var unusedServerer = UnusedServerController(acts: autoPause.acts) {
-    [weak self] thread in
-    guard let self else { return UnusedServerOutcome() }
-    return await endUnusedServer(thread)
-  }
-  /// The last connection on each served port (Q20), kept by the instance that acts.
-  var portClock = ServedPortClock.load(AppData.directory)
-  private var portClockSavedAt: Date?
-  /// Where the clock is saved; a test swaps in its own folder.
-  var portClockDirectory = AppData.directory
   /// Dev servers Q20 ended, for the Stopped list.
   @Published private(set) var endedServers = EndedServerLog.load()
   /// Where that log is saved; a test swaps in a `TestDefaults`.
   var endedServersDefaults = UserDefaults.standard
-  /// The latest scan's listening ports by process, connected local ports and folders (Q20).
-  private var listeningPorts: [Int32: [Int]] = [:]
-  private var establishedPorts: Set<Int> = []
-  private var portsComplete = false
-  private var directories: [Int32: String] = [:]
+  private var appliedProcessScan = AppliedProcessScan()
+  private var latestApplied: AppliedProcessScan.Observation?
+  private var listeningPorts: [Int32: [Int]] { latestApplied?.listeningPorts ?? [:] }
+  private var directories: [Int32: String] { latestApplied?.directories ?? [:] }
   /// Q21's state: what it turned off, what the user turned back on, its last run.
   @Published private(set) var codexTrim = CodexTrimState.read(AppData.directory)
   /// Where the rows' modes are saved; a test swaps in a `TestDefaults`.
@@ -152,19 +151,16 @@ final class DevProcessModel: ObservableObject {
   private var poweringOff = false
   /// Scans are numbered as they start, to tell which ones began before a signal settled.
   private var scansStarted = 0
-  /// Processes holding a listening port: the latest complete port scan, plus any partial ones since.
-  private var listeningIDs: Set<Int32> = []
-  /// The latest scan read every process and port, so `threads` lists every live session.
-  private var scanComplete = false
+  /// Applied process facts keep the previous complete port observation through partial reads.
+  private var listeningIDs: Set<Int32> { latestApplied?.servingIDs ?? [] }
+  private var scanComplete: Bool { latestApplied?.scanComplete ?? false }
   /// Keep running per thread directory under `keptPreferences`. The check resolves symlinks, so
   /// it runs once per new directory or preference change, not on every refresh.
   private var keptPreferences: [WorkspacePreference]?
   private var keptByDirectory: [String: Bool] = [:]
   /// The latest scan's `ps` records, for the heavy children of busy sessions.
   private var records: [Int32: RawProcessRecord] = [:]
-  /// A complete port scan has landed since launch, so servers are known before a terminal job
-  /// is slowed.
-  private var portsScanned = false
+  private var portsScanned: Bool { latestApplied?.portsScanned ?? false }
   private var identities: [Int32: DevProcessIdentity] = [:]
   @Published private(set) var isRefreshing = false
   /// Set when an action asks for a refresh while one is running; that scan started before the
@@ -194,6 +190,8 @@ final class DevProcessModel: ObservableObject {
   private var appsSeen: [AppSlow.App] = []
   /// Apps Tamebar slowed in the background now (Q17.1), for the hover card.
   @Published private(set) var slowedApps: [BackgroundPriority.AppEntry] = []
+  /// Live slowed sessions, workloads and apps for Activity and the hover card.
+  @Published private(set) var slowedNow: [CurrentActivity.Slowed] = []
   /// Apps slowed in the last week, by bundle id, for Settings' apps list.
   @Published private(set) var recentlySlowedApps: [String: BackgroundPriority.RecentApp] = [:]
   @Published private(set) var projectTargets: [String: ProjectPauseTarget] = [:]
@@ -347,6 +345,8 @@ final class DevProcessModel: ObservableObject {
     let scanned = await Task.detached(priority: .utility) {
       snapshot()
     }.value
+    let observed = appliedProcessScan.apply(scanned)
+    latestApplied = observed
     // Before `updateUnused` and the automatic actions, which read it.
     callReading = observation?.calls
     meetingActive = meetingMonitor.tick(now: .now, observation: observation)
@@ -363,21 +363,9 @@ final class DevProcessModel: ObservableObject {
       E2EMode.OtherRuns.shared.update(
         E2EMode.runs(in: Array(scanned.records.values), userID: Int(getuid())))
     }
-    let stopped = Set(
-      scanned.identities.values.filter(\.process.stopped).map(\.process.processID))
-    let built = ResourceConsumers.build(
-      .init(threads: scanned.threads, resources: scanned.resources, stopped: stopped))
+    let stopped = observed.stoppedIDs
+    let built = observed.consumers
     if consumers != built { consumers = built }
-    // A partial port scan holds back only the serving input; the agent signals still update.
-    listeningIDs = UnusedPolicy.listeners(
-      previous: listeningIDs,
-      scan: .init(listening: scanned.listeningIDs, complete: scanned.portsComplete))
-    scanComplete = !scanned.incomplete
-    if scanned.portsComplete { portsScanned = true }
-    listeningPorts = scanned.listeningPorts
-    establishedPorts = scanned.establishedPorts
-    portsComplete = scanned.portsComplete && scanned.establishedComplete
-    directories = scanned.directories
     updateUnused()
     if usage != nil { usagePresent = !presence.reading().isAway }
     // The projects first: automatic pause plans from them, captured at this scan.
@@ -388,13 +376,17 @@ final class DevProcessModel: ObservableObject {
     let targets = E2EMode.current?.targets()
     let paused = runAutoActions(scan: scan, stopped: stopped, targets: targets)
     let slowed = runBackgroundPriority(targets: targets)
-    noteHeat(paused: paused, slowed: slowed)
-    runAutoEnd(targets: targets)
+    automaticActions.recordHeat(paused: paused, slowed: slowed, acting: heatActing)
     // A `defaults write` of a switch or list is read at the next scan.
     let safety = AutomaticSafety.load(safetyDefaults)
     if safety != self.safety { self.safety = safety }
-    runPressureEnd(targets: targets)
-    runUnusedServers(targets: targets)
+    if autoPause.acts { away = presence.reading().isAway }
+    automaticActions.run(
+      .init(
+        now: .now, serverNow: unusedServerNow(), observed: observed, records: records,
+        unused: unused, protections: protections, scope: targets, inFlight: stoppingThreads,
+        risk: pressure.memoryRisk, inMeeting: meetingActive, away: away,
+        manuallyEnding: isEnding, autoEnd: autoEnd, safety: safety, home: AgentHome.current))
     runCodexTrim()
     statusMessage =
       scanned.incomplete
@@ -542,8 +534,8 @@ final class DevProcessModel: ObservableObject {
 
   // MARK: Stopped (Q15)
 
-  /// Everything Tamebar stopped that isn't back, for the window's Stopped list and the card's
-  /// "N stopped" line: built from the ledgers on each read, so it never disagrees with them.
+  /// Everything Tamebar stopped that isn't back, for CLI recovery and current Activity's
+  /// live subset: built from the ledgers on each read, so it never disagrees with them.
   var stopped: [StoppedEntry] {
     var input = StoppedLog.Input(now: .now)
     input.ledger = autoPause.record.state.ledger
@@ -558,8 +550,8 @@ final class DevProcessModel: ObservableObject {
     return StoppedLog.entries(input)
   }
 
-  /// The card's "N stopped ›" count.
-  var stoppedCount: Int { stopped.count }
+  /// Only work still affected now; ended sessions remain in `stopped` for CLI recovery.
+  var currentActivity: CurrentActivity { .init(stopped: stopped, slowed: slowedNow) }
 
   /// The scan's running apps: a panel-quit app launched since its quit leaves the log.
   func updateRunningApps(_ running: [String: Date?], now: Date) {
@@ -574,9 +566,7 @@ final class DevProcessModel: ObservableObject {
     var servers = endedServers
     servers.prune(now: now)
     servers.dropBack(
-      listeners: listeningPorts.flatMap { pid, ports in
-        ports.map { (port: $0, directory: directories[pid]) }
-      })
+      listeners: latestApplied?.listenerLocations ?? [])
     if servers != endedServers {
       endedServers = servers
       servers.save(endedServersDefaults)
@@ -615,22 +605,6 @@ final class DevProcessModel: ObservableObject {
     }
     bringingBack[entry.id] = .now
     refresh()
-  }
-
-  /// The Stopped list's Resume all: every paused session and
-  /// project, through Resume now, and every app. Never the ended sessions: each would open a
-  /// Terminal window running its agent, so they are resumed one at a time from their row.
-  func bringBackAll() {
-    let entries = stopped
-    if entries.contains(where: { if case .ledger = $0.target { true } else { false } }) {
-      for entry in entries where entry.state == .paused {
-        bringingBack[entry.id] = .now
-      }
-      resumeAutoPaused()
-    }
-    for entry in entries {
-      if case .app = entry.target { bringBack(entry) }
-    }
   }
 
   /// What Resume now leaves: the resumed flash, which confirms the click in the open panel's
@@ -798,42 +772,7 @@ final class DevProcessModel: ObservableObject {
             thread: thread, home: home,
             startTime: EndPlan.startTime(thread, identities: scanned)))
       })
-    if outcome.resumed > 0 { lastResume = (now, outcome.resumed) }
-    for reopen in outcome.reopens {
-      Task { [weak self] in
-        guard let text = await reopen.value, let self else { return }
-        note = (text, Date.now)
-        sentinel.log(text)
-      }
-    }
-    for quit in outcome.quits {
-      // Only a quit that ended its app is reported, once it has.
-      Task { [weak self] in
-        guard let app = await quit.value, let self else { return }
-        usage?.add(.quit(freedBytes: app.memoryBytes))
-        let text = AppPressureWiring.note(app)
-        note = (text, Date.now)
-        sentinel.log(text)
-      }
-    }
-    if !outcome.resumedProjects.isEmpty {
-      sentinel.log("Resumed \(outcome.resumedProjects.values.sorted().joined(separator: ", "))")
-    }
-    guard !outcome.pauses.isEmpty else { return outcome }
-    // Only pauses that stopped something are reported, once they have all landed.
-    Task { [weak self] in
-      let landed = await outcome.landed()
-      guard let self else { return }
-      let count = landed.sessions.count + landed.projects.count
-      if count > 0 { usage?.add(.paused(count: count, freedBytes: landed.freed)) }
-      if let text = AutoPauseWiring.note(
-        paused: landed.sessions, projects: landed.projects, freed: landed.freed)
-      {
-        // From when it landed, so the note gets its whole 4 s in the notch.
-        note = (text, Date.now)
-        sentinel.log(text)
-      }
-    }
+    automaticActions.recordPause(outcome)
     return outcome
   }
 
@@ -842,20 +781,6 @@ final class DevProcessModel: ObservableObject {
   /// Tamebar is acting on heat: serious or critical held 30 s, not yet 60 s back to normal, and
   /// no call (a call has its own rules, and heat touches nothing during one).
   var heatActing: Bool { autoPause.heat && !meetingActive }
-
-  /// One note for what heat did this scan, once its pauses have landed: "Mac hot · slowed 2
-  /// builds, paused 1 idle session". None when it did nothing.
-  private func noteHeat(paused: AutoPauseWiring.Outcome, slowed: String?) {
-    guard heatActing else { return }
-    let heatPauses = paused.pauses.isEmpty ? nil : paused
-    guard slowed != nil || heatPauses != nil else { return }
-    Task { [weak self] in
-      let count = await heatPauses?.landedHeat() ?? 0
-      guard let self, let text = Heat.note(slowed: slowed, paused: count) else { return }
-      note = (text, Date.now)
-      sentinel.log(text)
-    }
-  }
 
   /// The projects automatic pause plans from: opted-in ones are checked against Keep running,
   /// and, in e2e mode, their parents are read for the scope.
@@ -942,56 +867,24 @@ final class DevProcessModel: ObservableObject {
     updateUnused()
   }
 
-  /// Steps the scheduler with this scan, in e2e mode on the threads rooted at a target only. An
-  /// end goes through `endUnused`, which re-checks the session; the note comes on return.
-  private func runAutoEnd(targets: Set<Int32>?) {
-    guard autoEnder.acts else { return }
-    let now = Date.now
-    away = presence.reading().isAway
-    let outcome = autoEnder.run(
-      .init(
-        now: now, away: away, settings: autoEnd,
-        scan: .init(
-          threads: threads, unused: unused, protections: protections, scope: targets,
-          inFlight: stoppingThreads, records: records),
-        busy: isEnding || !pressureEnder.scheduler.pending.isEmpty))
-    if let text = outcome.note {
-      note = (text, now)
+  private func recordAutomatic(_ event: AutomaticActionCoordinator.Event) {
+    switch event {
+    case .note(let text):
+      note = (text, .now)
       sentinel.log(text)
-    }
-    if let ending = outcome.ending {
-      let bytes = outcome.endingBytes
-      Task { [weak self] in
-        if await ending.value { self?.usage?.add(.ended(freedBytes: bytes)) }
-      }
-    }
-  }
-
-  // MARK: Ending long-idle sessions under memory pressure (Q18)
-
-  /// Steps Q18's scheduler with this scan, in e2e mode on the threads rooted at a target only.
-  /// An end goes through `endUnused`, which re-checks the session; the note follows once it
-  /// landed, with what the session held.
-  private func runPressureEnd(targets: Set<Int32>?) {
-    guard pressureEnder.acts, safety.endIdleSessions else { return }
-    // The terminals' last input, read only while memory is at warning: nothing ends otherwise.
-    let lastInput =
-      pressure.memoryRisk >= .warning ? WorkQueue.lastInput(threads, records: records) : [:]
-    let outcome = pressureEnder.run(
-      .init(
-        risk: pressure.memoryRisk,
-        scan: .init(
-          now: .now, threads: threads, protections: protections, scope: targets,
-          inFlight: stoppingThreads, records: records, lastInput: lastInput),
-        busy: isEnding || !autoEnder.scheduler.pending.isEmpty))
-    guard let ending = outcome.ending else { return }
-    let bytes = outcome.endingBytes
-    let name = outcome.name
-    Task { [weak self] in
-      guard await ending.value, let self else { return }
+    case .noteOnly(let text):
+      note = (text, .now)
+    case .ended(let bytes):
       usage?.add(.ended(freedBytes: bytes))
-      let text = PressureEndScheduler.note(name: name, freed: bytes)
-      note = (text, Date.now)
+    case .paused(let count, let freed):
+      usage?.add(.paused(count: count, freedBytes: freed))
+    case .quit(let bytes):
+      usage?.add(.quit(freedBytes: bytes))
+    case .slowed(let count):
+      usage?.add(.slowed(count: count))
+    case .resumed(let count):
+      lastResume = (.now, count)
+    case .log(let text):
       sentinel.log(text)
     }
   }
@@ -1020,48 +913,6 @@ final class DevProcessModel: ObservableObject {
     return scan
   }
 
-  /// Records this scan's connections on the served ports, then steps Q20's scheduler.
-  private func runUnusedServers(targets: Set<Int32>?) {
-    guard unusedServerer.acts else { return }
-    let now = unusedServerNow()
-    let served = threads.reduce(into: Set<Int>()) {
-      $0.formUnion(UnusedServers.servedPorts($1, listening: listeningPorts))
-    }
-    var clock = portClock
-    clock.observe(served: served, connected: establishedPorts, now: now, complete: portsComplete)
-    if clock != portClock {
-      let keysChanged = Set(clock.lastUsed.keys) != Set(portClock.lastUsed.keys)
-      portClock = clock
-      if keysChanged || portClockSavedAt.map({ Date.now.timeIntervalSince($0) >= 60 }) ?? true {
-        clock.save(portClockDirectory)
-        portClockSavedAt = .now
-      }
-    }
-    // The clock runs whatever the switch, so switching it on finds a day of connections.
-    guard safety.endIdleSessions, !served.isEmpty else { return }
-    // A keystroke read only for the sessions the agent says have been idle 24 h.
-    let old = threads.filter {
-      (UnusedPolicy.idleFor($0, now: now) ?? 0) >= UnusedServers.unusedFor
-        && !UnusedServers.servedPorts($0, listening: listeningPorts).isEmpty
-    }
-    guard !old.isEmpty else { return }
-    let task = unusedServerer.run(
-      unusedServerScan(now: now, targets: targets, lastInputFor: old), inCall: meetingActive,
-      busy: isEnding || !autoEnder.scheduler.pending.isEmpty
-        || !pressureEnder.scheduler.pending.isEmpty)
-    guard let task else { return }
-    Task { [weak self] in
-      let outcome = await task.value
-      guard let self, !outcome.servers.isEmpty else { return }
-      if outcome.sessionEnded { usage?.add(.ended(freedBytes: outcome.freed)) }
-      let text = UnusedServers.note(
-        name: outcome.name, ports: outcome.servers.flatMap(\.ports),
-        sessionEnded: outcome.sessionEnded, freed: outcome.freed)
-      note = (text, Date.now)
-      sentinel.log(text)
-    }
-  }
-
   /// Q20's end of one session: after a fresh scan, the session is judged again (24 h with no
   /// interaction, every served port 24 h without a connection, none protected, no other job, no
   /// protection but serving, no call) and its agent's status re-read (Q7). Then its dev servers
@@ -1070,7 +921,7 @@ final class DevProcessModel: ObservableObject {
   /// re-checks it once more right before its own signal.
   func endUnusedServer(_ target: AIThread) async -> UnusedServerOutcome {
     await refreshNow()
-    var outcome = UnusedServerOutcome(name: PressureEndWiring.name(target))
+    var outcome = UnusedServerOutcome(name: SessionEligibility.name(target))
     let now = unusedServerNow()
     guard !meetingActive, let thread = threadsByID[target.id] else { return outcome }
     let scan = unusedServerScan(
@@ -1203,20 +1054,21 @@ final class DevProcessModel: ObservableObject {
         groups: groups, identities: identities, serving: listeningIDs, heat: heatActing,
         apps: appsSeen))
     updateSlowedRows()
-    if outcome.slowed + outcome.appSlowed > 0 {
-      usage?.add(.slowed(count: outcome.slowed + outcome.appSlowed))
-    }
-    // An app's note is its own, whatever heat does (Q17.1).
-    if let text = outcome.appNote {
-      note = (text, now)
-      sentinel.log(text)
-    }
-    if heatActing { return outcome.note }
-    if let text = outcome.note { note = (text, now) }
-    return nil
+    return automaticActions.recordPriority(outcome, heatActing: heatActing)
   }
 
   private func updateSlowedRows() {
+    let current = CLIReport.slowed(
+      background.record,
+      label: { id in
+        threads.first(where: { $0.id == id })?.project
+      }
+    ).map { row in
+      CurrentActivity.Slowed(
+        id: row.group, name: row.label,
+        kind: CurrentActivity.Slowed.Kind(rawValue: row.kind) ?? .workload)
+    }
+    if current != slowedNow { slowedNow = current }
     if background.record.apps != slowedApps { slowedApps = background.record.apps }
     if background.record.recentApps != recentlySlowedApps {
       recentlySlowedApps = background.record.recentApps
@@ -1548,14 +1400,15 @@ final class DevProcessModel: ObservableObject {
     let automatic = automatic || pressure || unusedServer
     let eligible: [String: UnusedPolicy.Reason] =
       if pressure {
-        PressureEndWiring.eligible(
-          threads, now: .now, lastInput: WorkQueue.lastInput(threads, records: records))
+        SessionEligibility.idleEligible(
+          threads, now: .now, lastInput: WorkQueue.lastInput(threads, records: records),
+          minimum: PressureEndScheduler.minimumIdle)
       } else if unusedServer {
-        UnusedServers.eligible(
+        SessionEligibility.idleEligible(
           threads, now: unusedServerNow(),
           lastInput: WorkQueue.lastInput(
             threads.filter { thread in targets.contains { $0.id == thread.id } },
-            records: records))
+            records: records), minimum: UnusedServers.unusedFor)
       } else {
         unused
       }
@@ -1568,7 +1421,7 @@ final class DevProcessModel: ObservableObject {
         identities: identities, stopping: stoppingThreads, home: AgentHome.current),
       probe: statusProbe)
     // An automatic end also needs a resume command and no background job, on the fresh scan (Q10).
-    if automatic { plan = AutoEndWiring.recheck(plan, records: records) }
+    if automatic { plan = SessionEligibility.recheckAutomatic(plan, records: records) }
     // No suspension since the plan, so none of its threads should be in flight; if one is, it
     // still lands in a count.
     var inFlight = plan.inFlight
@@ -1613,7 +1466,7 @@ final class DevProcessModel: ObservableObject {
     return result
   }
 
-  /// The automatic end of one session (Q10), for `autoEnder`: true only when every process of it
+  /// The automatic end of one session (Q10): true only when every process of it
   /// quit. Became active, still running, gone, or held back by the user's return all land as not ended.
   func endAutomatically(_ thread: AIThread) async -> Bool {
     await endUnused([thread], automatic: true).confirmed == 1
@@ -1625,7 +1478,7 @@ final class DevProcessModel: ObservableObject {
     autoEnd.mode == .auto && presence.reading().isAway
   }
 
-  /// The end under memory pressure of one session (Q18), for `pressureEnder`: true only when
+  /// The end under memory pressure of one session (Q18): true only when
   /// every process of it quit.
   func endUnderPressure(_ thread: AIThread) async -> Bool {
     await endUnused([thread], pressure: true).confirmed == 1

@@ -344,7 +344,7 @@ extension StoppedEntry {
     case .paused: "Resume"
     case .ended: command == nil ? nil : "Resume"
     case .quit: "Reopen"
-    case .off: "Undo"
+    case .off: "Turn on"
     }
   }
 
@@ -358,13 +358,6 @@ extension StoppedEntry {
     formatter.dateFormat = calendar.isDate(date, inSameDayAs: now) ? "HH:mm" : "MMM d"
     return formatter.string(from: date)
   }
-}
-
-/// The Stopped list's "Stopped · 5" header and the card's "5 stopped" line.
-enum StoppedRows {
-  static func header(count: Int) -> String { "Stopped · \(count)" }
-  static func line(count: Int) -> String { "\(count) stopped" }
-  static let copyCaption = "⧉ copies the command"
 }
 
 // MARK: Apps quit from the panel

@@ -1,5 +1,74 @@
 # Product design
 
+## November 2 The menu-bar card is rounded at the top (N15)
+
+On a display without a notch the card hangs from Tamebar's menu-bar item. The user asked for its two
+top corners rounded. Approved as mocked: all four corners at the card's radius (14 pt open), and the
+card 4 pt below the menu bar, as a macOS menu sits, so the rounding reads against the bar instead of
+leaving slivers of desktop beside it. The hover region (item, card and margin) spans the gap. The notch
+card keeps its square top, since it grows out of the notch.
+
+```
+──────────────── menu bar ────────
+        (4 pt gap)
+       ╭────────────────────────╮
+       │ ● Watching your Mac    │
+       │ …                      │
+       ╰────────────────────────╯
+```
+
+## November 2 The card says Tamebar is watching (N14)
+
+The user asked for "a status like observing your Mac … with a green dot to show the app is
+running" on the hover card. Approved as mocked:
+
+```
+┌──────────────────────────────────────┐
+│ ● Watching your Mac                  │   green dot (BlitzStatusDot, .good)
+│ Memory 2 GB free · Strain none       │
+│ Today: ended 3 · slowed 2 · 4 GB back│
+│ …                                    │
+└──────────────────────────────────────┘
+│ ● Not updating · last check 2m ago   │   gray dot (.muted), last scan over 60 s old
+```
+
+- The line leads the card, above the event line and the memory line, in the caption style.
+- Green means the process scan is current, not merely that the app runs: the card only exists while
+  Tamebar runs, so an always-green dot would say nothing. Scans run every 5 to 15 s (longer under
+  pressure), so the line turns gray only after 60 s without one. Before the first scan it reads
+  "Starting" with a gray dot. The card re-reads it every 10 s on its own.
+- This is the one status line allowed in a header; the October 18 rule against live/status pills in
+  headers still holds everywhere else.
+
+## November 2 Current Activity replaces the mixed Stopped count (N13)
+
+The user found "31 stopped" unclear: it mixed ended session history with plugins still off and
+did not say whether anything needed action. The approved panel keeps live slowing visible and
+removes ended session history from the card and Activity tab. The CLI recovery log still retains
+ended sessions and servers.
+
+```
+Hover card                            Activity tab
+┌──────────────────────────────────┐  ┌─────────────────────────────────────┐
+│ Memory 2 GB free · Strain none   │  │ Slowed now                          │
+│ Today: ended 3 · slowed 2 …      │  │ Claude · project A                  │
+│ Slowed now: Claude · project A › │  │ Returns to normal automatically     │
+│ 8 Codex plugins off · optional › │  │ Paused now · resumes automatically  │
+│ [Ask Claude] [Ask Codex]  Open › │  │ Codex plugins off · optional        │
+└──────────────────────────────────┘  │ context7                  [Turn on] │
+                                      │ Trend · 7 days                      │
+                                      └─────────────────────────────────────┘
+```
+
+- The card has a separate link for each present live category: slowed now, paused now, apps quit,
+  and Codex plugins off. It shows no line for an empty category. "Today" remains a count of
+  events during the day; "Slowed now" is the current state, including slowed sessions and work.
+- Activity groups live slowed work, paused work, quit apps and off Codex plugins. Slowed work
+  returns to normal automatically; paused work resumes automatically and offers Resume now; quit
+  apps and off plugins are optional to bring back. An empty Activity tab says nothing needs action.
+- Ended sessions and servers are absent from this panel because they need no follow-up. They stay
+  available from `tamebar stopped` for deliberate recovery.
+
 ## October 31 Safe defaults: what ends or edits is switched on in Settings (P2)
 
 Settings, Automatic actions, keeps its card and gains two checks, each with one caption line and one small
@@ -921,7 +990,8 @@ resolve the user's task, use shared components, preserve consequential states, a
 - Define each feature once. A second entry point may link to the owner (an Overview suggestion row) but never
   re-render its list or controls.
 - Badges report exceptions only: Not responding, Detached, Paused, Not back, Revived. Normal states (Running, Normal,
-  Shutdown, Not checked) get no badge. No "needs attention" labels, no live/status pills in headers, and no header
+  Shutdown, Not checked) get no badge. No "needs attention" labels, no live/status pills in headers (except the
+  card's "Watching your Mac" line, N14), and no header
   subtitle that repeats a section count. Empty states are one line of text, with no icon, title, or blurb.
 
 ## Implementation decisions

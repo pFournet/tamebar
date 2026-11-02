@@ -80,7 +80,7 @@ final class IslandController: ObservableObject {
     var reduceMotion: @MainActor () -> Bool = {
       NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
     }
-    /// The card's Open › and "N stopped ›", and a click on the wings: Tamebar's window, on a tab
+    /// The card's Open › and Activity links, and a click on the wings: Tamebar's window, on a tab
     /// when given, Tamebar in front (N11).
     var openWindow: @MainActor (IslandController, WindowTab?) -> Void = { $0.navigation.open($1) }
     /// The hover card's Ask Claude / Ask Codex (N8): Terminal running the tool.

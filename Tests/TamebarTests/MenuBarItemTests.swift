@@ -150,7 +150,7 @@ struct MenuBarItemTests {
       let item = CGRect(x: screen.frame.minX + 900, y: top - 24, width: 60, height: 24)
       let card = MenuBarCardGeometry.frame(
         item: item, screen: screen, width: 360, contentHeight: 300)
-      #expect(card.maxY == item.minY, "from the menu bar's bottom edge")
+      #expect(card.maxY == item.minY - MenuBarCardGeometry.gap, "a gap under the menu bar")
       #expect(card.midX == item.midX, "centred on the item")
       #expect(card.height == 300)
       #expect(screen.frame.contains(card), "on the item's screen")
@@ -172,7 +172,9 @@ struct MenuBarItemTests {
     let tall = MenuBarCardGeometry.frame(
       item: left, screen: external, width: 360, contentHeight: 5_000)
     #expect(tall.height == external.frame.height - 40)
-    #expect(MenuBarCardGeometry.start(item: left).maxY == left.minY, "grows from under the item")
+    #expect(
+      MenuBarCardGeometry.start(item: left).maxY == left.minY - MenuBarCardGeometry.gap,
+      "grows from under the item")
   }
 
   // MARK: The controller
@@ -277,7 +279,7 @@ struct MenuBarItemTests {
     rig.advance(0.1)
     #expect(rig.menuBar.isOpen)
     let card = try #require(rig.menuBar.cardFrame)
-    #expect(card.maxY == rig.item.minY, "under the item")
+    #expect(card.maxY == rig.item.minY - MenuBarCardGeometry.gap, "under the item")
     #expect(card.midX == rig.item.midX)
     #expect(card.width == NotchGeometry.expandedWidth, "the notch card's width")
     let window = try #require(rig.menuBar.cardWindow)
@@ -325,7 +327,7 @@ struct MenuBarItemTests {
     defer { rig.tearDown() }
     rig.menuBar.itemClicked()
     #expect(rig.menuBar.isOpen, "at once, with no rest")
-    #expect(rig.menuBar.cardFrame?.maxY == rig.item.minY)
+    #expect(rig.menuBar.cardFrame?.maxY == rig.item.minY - MenuBarCardGeometry.gap)
     rig.menuBar.itemClicked()
     #expect(!rig.menuBar.isOpen, "a second click closes it")
     try await settle()

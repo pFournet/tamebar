@@ -1,25 +1,10 @@
 import SwiftUI
 
-/// The Stopped list (Q15, approved as mocked): everything Tamebar stopped that isn't back, one row
-/// each with one button, and Resume all. Since N11 it leads the window's Activity tab, reached from
-/// "N stopped ›" on the card.
-///
-/// ```
-/// Stopped · 5                                Resume all
-/// ╭──────────────────────────────────────────────────╮
-/// │ ⏸ web-frontend             1 GB   [Resume]        │
-/// │   paused · call                                   │
-/// │ ■ Atlas                    2 GB   [Resume]  ⧉     │
-/// │   ended · idle 3d                                 │
-/// │ ■ web-frontend :5180     40 MB   [Resume]  ⧉     │
-/// │   ended · unused 2d                               │
-/// │ ■ context7                        [Undo]          │
-/// │   off · unused 30d                                │
-/// ╰──────────────────────────────────────────────────╯
-/// ⧉ copies the command
-/// ```
-struct StoppedListView: View {
+/// Live Activity: slowed and paused work restores automatically; quit apps and off plugins can
+/// be brought back if needed. Ended sessions stay in the CLI recovery log, outside this panel.
+struct CurrentActivityView: View {
   let entries: [StoppedEntry]
+  var slowed: [CurrentActivity.Slowed] = []
   /// Rows whose button was clicked and that haven't left yet.
   var busy: Set<String> = []
   var now: Date = .now
@@ -30,11 +15,13 @@ struct StoppedListView: View {
 
   /// `copiedID` starts a row in its copied state, for design renders.
   init(
-    entries: [StoppedEntry], busy: Set<String> = [], now: Date = .now, copiedID: String? = nil,
+    entries: [StoppedEntry], slowed: [CurrentActivity.Slowed] = [],
+    busy: Set<String> = [], now: Date = .now, copiedID: String? = nil,
     bringBack: @escaping (StoppedEntry) -> Void = { _ in },
     bringBackAll: @escaping () -> Void = {}
   ) {
     self.entries = entries
+    self.slowed = slowed
     self.busy = busy
     self.now = now
     self.bringBack = bringBack
@@ -42,43 +29,78 @@ struct StoppedListView: View {
     _copied = State(initialValue: copiedID.map { ($0, Date.now) })
   }
 
-  /// Resume all resumes what's paused and reopens apps; ended sessions are resumed one
-  /// by one, so it shows only when there is something else.
-  private var canBringBackAll: Bool {
-    entries.contains { $0.state != .ended && $0.state != .off && !busy.contains($0.id) }
-  }
+  private var activity: CurrentActivity { .init(stopped: entries, slowed: slowed) }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      header
-      if entries.isEmpty {
-        Text("Nothing stopped.").font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
-          .padding(.leading, 4)
-      } else {
-        rows
-        if entries.contains(where: { $0.command != nil }) {
-          Text(StoppedRows.copyCaption).font(BlitzType.caption)
-            .foregroundStyle(BlitzUI.secondaryText).padding(.leading, 4)
+      // Only when empty: above Resume and Reopen buttons it would contradict them.
+      if activity.slowed.isEmpty && activity.paused.isEmpty && activity.quitApps.isEmpty
+        && activity.pluginsOff.isEmpty
+      {
+        Text("Nothing needs your action").font(BlitzType.section)
+          .foregroundStyle(BlitzUI.primaryText)
+        Text("Tamebar is not slowing or pausing anything now.")
+          .font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
+      }
+      if !activity.slowed.isEmpty {
+        sectionTitle("Slowed now", detail: "Returns to normal automatically")
+        slowedRows
+      }
+      if !activity.paused.isEmpty {
+        HStack {
+          sectionTitle("Paused now", detail: "Resumes automatically")
+          Spacer(minLength: 8)
+          if activity.paused.count > 1 {
+            Button("Resume all", action: bringBackAll)
+              .blitzButton(.secondary).controlSize(.small).fixedSize()
+          }
+        }
+        rows(activity.paused)
+      }
+      if !activity.quitApps.isEmpty {
+        sectionTitle("Apps quit · optional", detail: "Reopen only if needed")
+        rows(activity.quitApps)
+      }
+      if !activity.pluginsOff.isEmpty {
+        sectionTitle("Codex plugins off · optional", detail: "Turn on only if needed")
+        rows(activity.pluginsOff)
+      }
+    }
+  }
+
+  private func sectionTitle(_ title: String, detail: String) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Text(title).font(BlitzType.section).foregroundStyle(BlitzUI.primaryText)
+      Text(detail).font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
+    }
+  }
+
+  private var slowedRows: some View {
+    ScrollView {
+      VStack(spacing: 0) {
+        ForEach(activity.slowed) { item in
+          HStack(spacing: 10) {
+            Image(systemName: "tortoise.fill").font(.system(size: 11))
+              .foregroundStyle(BlitzUI.secondaryText).frame(width: 14)
+            VStack(alignment: .leading, spacing: 2) {
+              Text(item.name).font(BlitzType.body).foregroundStyle(BlitzUI.primaryText)
+                .lineLimit(1).truncationMode(.middle)
+              Text(item.kind.rawValue.capitalized + " · slowed now")
+                .font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
+            }
+            Spacer(minLength: 0)
+          }
+          .padding(.horizontal, 10).frame(height: Self.rowHeight)
+          if item.id != activity.slowed.last?.id { BlitzRowDivider(leading: 34) }
         }
       }
     }
+    .scrollBounceBehavior(.basedOnSize)
+    .frame(maxHeight: Self.listHeight(activity.slowed.count))
+    .blitzCard(padding: 0)
   }
 
-  private var header: some View {
-    HStack(spacing: 6) {
-      Text(StoppedRows.header(count: entries.count)).font(BlitzType.section)
-        .foregroundStyle(BlitzUI.primaryText)
-      Spacer(minLength: 8)
-      if canBringBackAll {
-        Button("Resume all", action: bringBackAll)
-          .blitzButton(.secondary).controlSize(.small).fixedSize()
-          .help(
-            "Resumes the paused sessions and reopens the apps. Ended sessions resume one by one.")
-      }
-    }
-  }
-
-  private var rows: some View {
+  private func rows(_ entries: [StoppedEntry]) -> some View {
     ScrollView {
       VStack(spacing: 0) {
         ForEach(entries) { entry in
@@ -98,9 +120,14 @@ struct StoppedListView: View {
 
   private func row(_ entry: StoppedEntry) -> some View {
     HStack(spacing: 10) {
-      Image(systemName: entry.state == .paused ? "pause.fill" : "stop.fill")
-        .font(.system(size: 9, weight: .bold)).foregroundStyle(BlitzUI.secondaryText)
-        .frame(width: 14).accessibilityHidden(true)
+      Image(
+        systemName: entry.state == .paused
+          ? "pause.fill"
+          : entry.state == .off
+            ? "puzzlepiece.extension.fill" : "app.fill"
+      )
+      .font(.system(size: 9, weight: .bold)).foregroundStyle(BlitzUI.secondaryText)
+      .frame(width: 14).accessibilityHidden(true)
       VStack(alignment: .leading, spacing: 2) {
         Text(entry.name).font(BlitzType.body).foregroundStyle(BlitzUI.primaryText)
           .lineLimit(1).truncationMode(.middle)
@@ -112,7 +139,7 @@ struct StoppedListView: View {
       Text(entry.memoryBytes.map(ByteText.compact) ?? "")
         .font(BlitzType.numeric).foregroundStyle(BlitzUI.supportingText).lineLimit(1)
         .fixedSize()
-      if let title = entry.actionTitle {
+      if let title = entry.state == .paused ? "Resume now" : entry.actionTitle {
         let isBusy = busy.contains(entry.id)
         Button {
           bringBack(entry)

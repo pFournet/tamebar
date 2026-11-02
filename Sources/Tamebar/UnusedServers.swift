@@ -246,8 +246,7 @@ enum UnusedServers {
 
   static func judge(_ thread: AIThread, _ scan: Scan) -> Result<Candidate, HoldError> {
     func hold(_ reason: Hold) -> Result<Candidate, HoldError> { .failure(HoldError(reason)) }
-    guard thread.tool != .codexDesktop, !thread.isPaused, !scan.inFlight.contains(thread.id),
-      AutoPauseWiring.inScope(thread, scope: scan.scope)
+    guard SessionEligibility.available(thread, scope: scan.scope, inFlight: scan.inFlight)
     else { return hold(.out) }
     // Q20 lifts serving and nothing else: busy, Keep and a kept project still hold.
     if let protection = scan.protections[thread.id], protection != .serving {
@@ -257,8 +256,10 @@ enum UnusedServers {
     let servers = servers(
       thread, records: scan.records, listening: scan.listening, directories: scan.directories)
     guard !ports.isEmpty, !servers.isEmpty else { return hold(.notServing) }
-    guard AutoEndWiring.resumable(thread) else { return hold(.notResumable) }
-    guard let idle = PressureEndWiring.idle(thread, now: scan.now, lastInput: scan.lastInput),
+    guard SessionEligibility.resumable(thread) else { return hold(.notResumable) }
+    guard
+      let idle = SessionEligibility.interactionIdle(
+        thread, now: scan.now, lastInput: scan.lastInput),
       idle >= unusedFor
     else { return hold(.idleUnder24h) }
     guard ports.isDisjoint(with: scan.protectedPorts) else { return hold(.protectedPort) }
@@ -281,21 +282,6 @@ enum UnusedServers {
   struct HoldError: Error, Equatable {
     let hold: Hold
     init(_ hold: Hold) { self.hold = hold }
-  }
-
-  /// The sessions the fresh scan still shows with no interaction for 24 h, as the "unused" map
-  /// the click-time plan checks (`EndPlan.decide`). Never Codex desktop.
-  static func eligible(_ threads: [AIThread], now: Date, lastInput: [String: Date])
-    -> [String: UnusedPolicy.Reason]
-  {
-    var eligible: [String: UnusedPolicy.Reason] = [:]
-    for thread in threads where thread.tool != .codexDesktop {
-      guard let idle = PressureEndWiring.idle(thread, now: now, lastInput: lastInput),
-        idle >= unusedFor
-      else { continue }
-      eligible[thread.id] = .idle(idle)
-    }
-    return eligible
   }
 
   /// The 4 s note: "Ended web-frontend and its server :5180 · 2 GB back". When the session

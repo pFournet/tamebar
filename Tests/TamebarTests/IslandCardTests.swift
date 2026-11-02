@@ -22,6 +22,18 @@ struct IslandCardTests {
 
   // MARK: Content
 
+  /// N14 (2026-11-02): a green "Watching your Mac" while the scan is current; gray, with the age
+  /// of the last check, once it is older than a minute; "Starting" before the first scan.
+  @Test func theStatusLineSaysWhetherTamebarIsWatching() {
+    #expect(UsageCardStatus(scannedAt: t0, now: t0) == .watching)
+    #expect(UsageCardStatus(scannedAt: t0, now: t0 + 60) == .watching, "a slow scan still counts")
+    let stale = UsageCardStatus(scannedAt: t0, now: t0 + 125)
+    #expect(stale.text == "Not updating · last check 2m ago")
+    #expect(!stale.live)
+    #expect(UsageCardStatus(scannedAt: nil, now: t0) == .starting)
+    #expect(UsageCardContent(snapshot: snapshot(), now: t0).status == .watching)
+  }
+
   /// N11: memory free as the menu bar formats it, a dash when unknown.
   @Test func theMemoryLineReusesTheMenuBarFormatting() {
     let content = UsageCardContent(snapshot: snapshot(), now: t0)
@@ -76,15 +88,17 @@ struct IslandCardTests {
     }
   }
 
-  /// N11: "N stopped ›" only while something Tamebar stopped isn't back; Ask Claude and Ask
-  /// Codex as installed.
-  @Test func theStoppedLineAndTheAsksOnlyWhenThereAreAny() {
+  /// The card links only to current activity, never ended session history.
+  @Test func theActivityLinesAndTheAsksOnlyWhenThereAreAny() {
     let none = UsageCardContent(snapshot: snapshot(), now: t0)
-    #expect(none.stopped == nil)
+    #expect(none.activityLines.isEmpty)
     #expect(none.asks.isEmpty)
     #expect(none.today == "Today: nothing yet")
-    let some = UsageCardContent(snapshot: snapshot(), now: t0, stopped: 3, asks: [.claude])
-    #expect(some.stopped == "3 stopped")
+    let some = UsageCardContent(
+      snapshot: snapshot(), now: t0,
+      activity: .init(slowed: [.init(id: "ai:1", name: "Claude · project A", kind: .session)]),
+      asks: [.claude])
+    #expect(some.activityLines == ["Slowed now: Claude · project A"])
     #expect(some.asks == [.claude])
   }
 

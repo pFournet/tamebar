@@ -2,10 +2,10 @@ import AppKit
 import SwiftUI
 
 // N11 (2026-10-30: "we should threat it as a bg app who manage the usage"): Tamebar has no
-// Dock icon, and one small window with two tabs, opened from the card's Open › and "N stopped ›".
+// Dock icon, and one small window with two tabs, opened from the card's Open › and Activity links.
 //
 //   [ Activity | Settings ]
-//   Activity: the Stopped list with Resume (Q15), the 7-day trend (Q16)
+//   Activity: current slowed, paused and optional recovery items, then the 7-day trend (Q16)
 //   Settings: automatic actions and the apps list (Q10, Q11, Q17), Show Tamebar in (N9),
 //             meetings (M1), launch at login, updates, Quit (N10)
 
@@ -92,16 +92,17 @@ struct TamebarWindowView: View {
   }
 }
 
-/// Activity: what Tamebar stopped, with Resume, then the last 7 days under pressure.
+/// Activity: what Tamebar is affecting now, then the last 7 days under pressure.
 struct ActivityTab: View {
   @ObservedObject var processes: DevProcessModel
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        StoppedListView(
-          entries: processes.stopped, busy: Set(processes.bringingBack.keys),
-          bringBack: { processes.bringBack($0) }, bringBackAll: { processes.bringBackAll() })
+        CurrentActivityView(
+          entries: processes.stopped, slowed: processes.slowedNow,
+          busy: Set(processes.bringingBack.keys),
+          bringBack: { processes.bringBack($0) }, bringBackAll: { processes.resumeAutoPaused() })
         UsageTrendCard(data: processes.usageTrend)
       }
       .frame(maxWidth: .infinity, alignment: .leading)

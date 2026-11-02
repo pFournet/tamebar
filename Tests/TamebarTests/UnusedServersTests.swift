@@ -319,7 +319,7 @@ extension UnusedServersTests {
       let plugin = try #require(entries.first { $0.kind == .codexPlugin })
       #expect(plugin.kind.rawValue == "codex plugin")
       #expect(plugin.trayDetail(now: t0) == "off · unused 30d")
-      #expect(plugin.actionTitle == "Undo")
+      #expect(plugin.actionTitle == "Turn on")
       #expect(plugin.command == nil)
       #expect(plugin.target == .codexPlugin("server:context7"))
     }

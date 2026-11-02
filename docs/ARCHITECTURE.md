@@ -108,6 +108,15 @@ worktree/dependency safety, and the existing developer features.
 
 ## Pressure prevention
 
+`AppliedProcessScan` reconciles each process scan before policies see it. A partial listener read
+retains serving protection from the last complete read, while unused-server activity uses only
+ports observed in the current scan and does not expire absent ports on incomplete reads.
+`SessionEligibility` concentrates the shared AI-session facts and final automatic-end recheck;
+Q10, Q18, and Q20 keep their distinct thresholds. `AutomaticActionCoordinator` runs those three
+ending policies in order under the `autopause.lock` authority, reserves one end slot until its
+result lands, maintains the served-port clock, and records pause, priority, and end outcomes for
+usage and the notch.
+
 `PressureSentinel` samples memory pressure, compression, swap, real free disk capacity and CPU every two seconds
 on a serial queue independent of SwiftUI. It identifies the limiting resource, forecasts a shrinking disk reserve,
 and posts rate-limited notifications through the existing notification permission. It runs inside the app,

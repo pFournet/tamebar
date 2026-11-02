@@ -495,7 +495,7 @@ extension CodexTrimTests {
       #expect(text.contains("ended · unused 2 days"))
       #expect(text.contains("cd '/code/web' && npm run dev"))
       #expect(text.contains("off · no call in 30 days · new Codex sessions only"))
-      #expect(text.contains("Undo in Tamebar's Stopped list"))
+      #expect(text.contains("Turn on in Tamebar's Activity list"))
     }
   }
 }

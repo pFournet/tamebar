@@ -269,8 +269,8 @@ turned off (decisions Q21). Something quit by hand outside Tamebar isn't in it.
   session, `open -a <App>` for an app (`open -b <bundle id>` when the bundle has no name), `cd '<folder>'
   && <command line>` for a server (its command as `ps` shows it, `npm run <script>` with its `--` put
   back), `null` for what comes back on its own (paused) and for a Codex plugin, whose text line reads
-  `Undo in Tamebar's Stopped list` (Undo sets `enabled = true` again, and Tamebar never turns it off
-  again).
+  `Turn on in Tamebar's Activity list` (Turn on sets `enabled = true` again, and Tamebar never turns it
+  off again).
 - An entry leaves when the thing is back: a pause resumed, an ended session running again, an app
   launched after its quit (an app still listed with an earlier launch is the one quitting), a server
   listening on its port again from its folder, a Codex plugin back on (Undo, or `enabled = true` by

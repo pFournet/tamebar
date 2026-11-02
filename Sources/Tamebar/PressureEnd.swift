@@ -84,71 +84,6 @@ struct PressureEndScheduler: Equatable, Sendable {
   }
 }
 
-/// The model-side glue between a scan and `PressureEndScheduler`.
-enum PressureEndWiring {
-  struct Scan {
-    let now: Date
-    let threads: [AIThread]
-    let protections: [String: UnusedPolicy.Protection]
-    /// The root PIDs Tamebar may act on: the e2e targets. Nil outside e2e mode.
-    let scope: Set<Int32>?
-    /// Threads with a signal in flight.
-    let inFlight: Set<String>
-    /// The scan's `ps` records by PID, for `BackgroundJobs`.
-    var records: [Int32: RawProcessRecord] = [:]
-    /// Each session's terminal's last input (`WorkQueue.lastInput`): a keystroke resets idle.
-    var lastInput: [String: Date] = [:]
-  }
-
-  /// How long a session has had no interaction (Q18, "idle means no interaction"): the agent's
-  /// own idle age (its last status change: a message, a turn), cut short by the last keystroke
-  /// in its terminal (the later of its own tty's and its pane's). Nil when the agent isn't idle.
-  static func idle(_ thread: AIThread, now: Date, lastInput: [String: Date]) -> TimeInterval? {
-    guard let idle = UnusedPolicy.idleFor(thread, now: now) else { return nil }
-    guard let typed = lastInput[thread.id] else { return idle }
-    return max(0, min(idle, now.timeIntervalSince(typed)))
-  }
-
-  /// Every session the agent says is idle, with its idle age (`idle`), that Tamebar may end on
-  /// its own: in scope, not paused, no signal in flight, never Codex desktop, and Q10's automatic
-  /// rules (`AutoEndWiring.endable`: a resume command and no background job). A protected one is
-  /// listed as such, and the scheduler skips it.
-  static func candidates(_ scan: Scan) -> [PressureEndScheduler.Candidate] {
-    var seen: Set<String> = []
-    return scan.threads.compactMap { thread in
-      guard seen.insert(thread.id).inserted, thread.tool != .codexDesktop, !thread.isPaused,
-        !scan.inFlight.contains(thread.id), AutoPauseWiring.inScope(thread, scope: scan.scope),
-        let idle = idle(thread, now: scan.now, lastInput: scan.lastInput),
-        AutoEndWiring.endable(thread, records: scan.records)
-      else { return nil }
-      return .init(
-        id: thread.id, idle: idle, memoryBytes: thread.memoryBytes,
-        protected: scan.protections[thread.id] != nil)
-    }
-  }
-
-  /// The sessions the fresh scan still shows idle for 12 h or more (`idle`, so a keystroke in its
-  /// terminal counts), as the "unused" map the click-time plan checks (`EndPlan.decide`): Q18's
-  /// own cutoff, under the 24 h one the panel offers under pressure. Never Codex desktop (Q1).
-  static func eligible(_ threads: [AIThread], now: Date, lastInput: [String: Date])
-    -> [String: UnusedPolicy.Reason]
-  {
-    var eligible: [String: UnusedPolicy.Reason] = [:]
-    for thread in threads where thread.tool != .codexDesktop {
-      guard let idle = idle(thread, now: now, lastInput: lastInput),
-        idle >= PressureEndScheduler.minimumIdle
-      else { continue }
-      eligible[thread.id] = .idle(idle)
-    }
-    return eligible
-  }
-
-  /// What the note and the Stopped list call the session: its folder, as Q15 names it.
-  static func name(_ thread: AIThread) -> String {
-    EndPlan.entry(thread, now: .distantPast)?.folderName ?? thread.displayName
-  }
-}
-
 /// Runs the scheduler on each scan and ends what it picks through the model's `endUnused`, which
 /// waits for a fresh scan, re-checks the session (Q7, Q10's automatic rules, Q18's 12 h) and
 /// records it in the Stopped list. It acts only in the instance whose automatic pause acts.
@@ -168,7 +103,7 @@ final class PressureEndController {
 
   struct Tick {
     let risk: MemoryRisk
-    let scan: PressureEndWiring.Scan
+    let scan: SessionEligibility.PressureScan
     /// The user is ending sessions from a review, or Q10 is ending one: nothing new starts.
     var busy = false
   }
@@ -184,7 +119,7 @@ final class PressureEndController {
 
   func run(_ tick: Tick) -> Outcome {
     guard acts else { return Outcome() }
-    let candidates = tick.busy ? [] : PressureEndWiring.candidates(tick.scan)
+    let candidates = tick.busy ? [] : SessionEligibility.pressureCandidates(tick.scan)
     guard
       let id = scheduler.step(.init(now: tick.scan.now, risk: tick.risk, candidates: candidates))
     else { return Outcome() }
@@ -193,7 +128,7 @@ final class PressureEndController {
       return Outcome()
     }
     let end = end
-    var outcome = Outcome(endingBytes: thread.memoryBytes, name: PressureEndWiring.name(thread))
+    var outcome = Outcome(endingBytes: thread.memoryBytes, name: SessionEligibility.name(thread))
     outcome.ending = Task { [weak self] in
       let ended = await end(thread)
       self?.scheduler.landed(id, ended: ended)

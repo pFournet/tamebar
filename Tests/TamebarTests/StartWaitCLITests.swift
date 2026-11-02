@@ -209,18 +209,20 @@ struct StartWaitCLITests {
     #expect(UsageCardContent.waitingFooter == "They start on their own when it eases.")
   }
 
-  @Test func theWaitingBlockIsAButtonRowAboveTheStoppedLine() {
+  @Test func theWaitingBlockIsAButtonRowAboveActivity() {
     let bounds = CGRect(x: 0, y: 0, width: 400, height: 400)
     let card = CGSize(width: 360, height: 400)
-    let stopped = IslandCardMotion.stoppedRow(in: bounds, card: card)
-    let block = IslandCardMotion.waitingBlock(in: bounds, card: card, stopped: true, count: 2)
-    #expect(block.minY == stopped.maxY + 1)
+    let activity = IslandCardMotion.activityRows(in: bounds, card: card, count: 2)
+    let block = IslandCardMotion.waitingBlock(
+      in: bounds, card: card, activityRows: 2, count: 2)
+    #expect(block.minY == activity.maxY + 1)
     #expect(block.height == UsageCardView.waitingHeight(2))
     let point = CGPoint(x: 200, y: block.midY)
     #expect(
-      IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, stopped: true, waiting: 2))
-    #expect(!IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, stopped: true))
-    let alone = IslandCardMotion.waitingBlock(in: bounds, card: card, stopped: false, count: 1)
+      IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, activityRows: 2, waiting: 2))
+    #expect(!IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, activityRows: 2))
+    let alone = IslandCardMotion.waitingBlock(
+      in: bounds, card: card, activityRows: 0, count: 1)
     #expect(alone.minY == UsageCardView.actionRowHeight + 1)
   }
 }

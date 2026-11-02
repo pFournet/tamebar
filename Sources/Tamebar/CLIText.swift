@@ -261,7 +261,7 @@ enum CLIText {
       if let command = entry.resumeCommand {
         lines.append(indent + command)
       } else if entry.kind == StoppedEntry.Kind.codexPlugin.rawValue {
-        lines.append(indent + "Undo in Tamebar's Stopped list")
+        lines.append(indent + "Turn on in Tamebar's Activity list")
       }
     }
     return lines.joined(separator: "\n") + "\n"

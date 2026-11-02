@@ -524,7 +524,13 @@ struct IslandCardPanelTests {
       ("plain", .init(snapshot: snapshot, now: .now)),
       ("asks", .init(snapshot: snapshot, now: .now, asks: [.claude, .codex])),
       ("state line", .init(snapshot: snapshot, now: .now, line: call)),
-      ("everything", .init(snapshot: snapshot, now: .now, line: call, stopped: 2, asks: [.codex])),
+      (
+        "everything",
+        .init(
+          snapshot: snapshot, now: .now, line: call,
+          activity: .init(slowed: [.init(id: "ai:1", name: "Claude · project A", kind: .session)]),
+          asks: [.codex])
+      ),
     ]
     #expect(UsageCardView.openTitle == "Open")
     for (name, content) in variants {
@@ -591,21 +597,21 @@ struct IslandCardPanelTests {
     #expect(rig.opened == [nil, nil], "a click elsewhere on the card opens the window too")
   }
 
-  /// Q15: "N stopped ›" sits right above the last row's divider, and only while it shows does
+  /// A current Activity link sits right above the last row's divider, and only while it shows does
   /// its strip take its own click.
-  @Test func theStoppedLineIsAButtonRowAboveTheLastRow() {
+  @Test func theActivityLineIsAButtonRowAboveTheLastRow() {
     let bounds = CGRect(x: 0, y: 0, width: 400, height: 300)
     let card = CGSize(width: 360, height: 300)
-    let row = IslandCardMotion.stoppedRow(in: bounds, card: card)
+    let row = IslandCardMotion.activityRows(in: bounds, card: card, count: 1)
     #expect(row.minY == UsageCardView.actionRowHeight + 1)
-    #expect(row.height == UsageCardView.stoppedRowHeight)
+    #expect(row.height == UsageCardView.activityRowHeight)
     #expect(row.minX == 20 && row.width == 360)
     let point = CGPoint(x: 200, y: row.midY)
-    #expect(IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, stopped: true))
-    #expect(!IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, stopped: false))
+    #expect(IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, activityRows: 1))
+    #expect(!IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, activityRows: 0))
     #expect(
       IslandCardMotion.isOnButtonRow(
-        CGPoint(x: 200, y: 10), in: bounds, card: card, stopped: false))
+        CGPoint(x: 200, y: 10), in: bounds, card: card, activityRows: 0))
   }
 
   /// N8, N11: Ask Claude / Ask Codex share the last row with Open ›, the card's bottom strip.
@@ -616,9 +622,9 @@ struct IslandCardPanelTests {
     #expect(row.minY == 0 && row.height == UsageCardView.actionRowHeight)
     #expect(row.minX == 20 && row.width == 360)
     let point = CGPoint(x: 200, y: row.midY)
-    #expect(IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, stopped: false))
+    #expect(IslandCardMotion.isOnButtonRow(point, in: bounds, card: card, activityRows: 0))
     let above = CGPoint(x: 200, y: row.maxY + 5)
-    #expect(!IslandCardMotion.isOnButtonRow(above, in: bounds, card: card, stopped: false))
+    #expect(!IslandCardMotion.isOnButtonRow(above, in: bounds, card: card, activityRows: 0))
   }
 
   /// N8: a click on Ask Claude while the card is still fading in launches it once and closes the
@@ -648,15 +654,17 @@ struct IslandCardPanelTests {
     expectNear(window.frame, try rig.notch(), "back to rest on the notch")
   }
 
-  /// The line is in the card only while something is stopped, and its click runs its action.
-  @Test func theStoppedLineOpensTheStoppedList() async throws {
+  /// The line is in the card only while activity is current, and its click runs its action.
+  @Test func theActivityLineOpensActivity() async throws {
     let snapshot = SystemSnapshot(
       .init(
         diskAvailable: 1, diskTotal: 2, ramAvailable: 1, ramTotal: 2, memoryPressure: .normal,
         cpuUsage: 0.1, thermalStatus: .nominal, updatedAt: .now))
-    #expect(UsageCardContent(snapshot: snapshot, now: .now).stopped == nil)
-    let content = UsageCardContent(snapshot: snapshot, now: .now, stopped: 5)
-    #expect(content.stopped == "5 stopped")
+    #expect(UsageCardContent(snapshot: snapshot, now: .now).activityLines.isEmpty)
+    let content = UsageCardContent(
+      snapshot: snapshot, now: .now,
+      activity: .init(slowed: [.init(id: "ai:1", name: "Claude · project A", kind: .session)]))
+    #expect(content.activityLines == ["Slowed now: Claude · project A"])
     var opened = 0
     var stopped = 0
     let view = UsageCardView(
@@ -672,7 +680,7 @@ struct IslandCardPanelTests {
     host.layoutSubtreeIfNeeded()
     window.displayIfNeeded()
     try await Task.sleep(for: .seconds(0.1))
-    let line = UsageCardView.actionRowHeight + 1 + UsageCardView.stoppedRowHeight / 2
+    let line = UsageCardView.actionRowHeight + 1 + UsageCardView.activityRowHeight / 2
     try Self.click(window, at: CGPoint(x: host.bounds.midX, y: line))
     #expect(stopped == 1 && opened == 0)
   }

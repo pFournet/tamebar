@@ -52,7 +52,7 @@ struct AutomaticActionsSection: View {
         }
       }
       Text(
-        "Ends idle sessions while you’re away. Resume them from the Stopped list on Activity."
+        "Ends idle sessions while you’re away. Find their restart commands with tamebar stopped."
       )
       .font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
     }
@@ -136,7 +136,7 @@ struct IdleSessionsSwitch: View {
       .toggleStyle(BlitzCheckboxStyle())
       Text(
         "Idle 12 h while memory stays tight, or idle 24 h with a dev server nobody opened. "
-          + "Resume them from the Stopped list."
+          + "Find their restart commands with tamebar stopped."
       )
       .font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
       .fixedSize(horizontal: false, vertical: true)
@@ -173,7 +173,7 @@ struct CodexPluginsSwitch: View {
       .toggleStyle(BlitzCheckboxStyle())
       Text(
         "Sets enabled = false in ~/.codex/config.toml, after a backup, for a server no Codex "
-          + "session called in 30 days. New sessions only; Undo from the Stopped list."
+          + "session called in 30 days. New sessions only; turn it back on from Activity."
       )
       .font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
       .fixedSize(horizontal: false, vertical: true)

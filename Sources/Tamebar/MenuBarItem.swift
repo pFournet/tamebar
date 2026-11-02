@@ -124,12 +124,14 @@ struct MenuBarItemLabel: Equatable {
 
 // MARK: Where the card goes
 
-/// Where the card hangs under the item: the top on the menu bar's bottom
-/// edge (the item's), centred on the item, inside the item's screen, no taller than the screen's
+/// Where the card hangs under the item: its top `gap` below the menu bar's bottom edge (the
+/// item's), as a macOS menu sits (N15), centred on the item, inside the item's screen, no taller than the screen's
 /// visible frame allows. Rects are in AppKit's global space, as `NotchGeometry`'s.
 enum MenuBarCardGeometry {
   /// The closest the card comes to the screen's side edges.
   static let screenMargin: CGFloat = 8
+  /// Between the menu bar and the card's rounded top (N15). The hover region spans it.
+  static let gap: CGFloat = 4
 
   static func frame(
     item: CGRect, screen: NotchGeometry.Screen, width: CGFloat, contentHeight: CGFloat
@@ -139,13 +141,13 @@ enum MenuBarCardGeometry {
     let lowest = screen.frame.minX + screenMargin
     let highest = screen.frame.maxX - screenMargin - width
     let x = max(lowest, min(item.midX - width / 2, highest))
-    return CGRect(x: x, y: item.minY - height, width: width, height: height)
+    return CGRect(x: x, y: item.minY - gap - height, width: width, height: height)
   }
 
-  /// The sliver under the item the card grows out of and goes back to: its width, at the menu
-  /// bar's bottom edge.
+  /// The sliver under the item the card grows out of and goes back to: its width, where the
+  /// card's top is.
   static func start(item: CGRect) -> CGRect {
-    CGRect(x: item.minX, y: item.minY - 2, width: item.width, height: 2)
+    CGRect(x: item.minX, y: item.minY - gap - 2, width: item.width, height: 2)
   }
 }
 
@@ -395,7 +397,7 @@ final class MenuBarItemController: ObservableObject {
     island.environment.openWindow(island, nil)
   }
 
-  /// The card's "N stopped ›" line (Q15): the window on Activity, where the Stopped list is.
+  /// A card Activity link opens the window on Activity.
   func openStopped() {
     hover.cancel()
     finish()
@@ -410,12 +412,13 @@ final class MenuBarItemController: ObservableObject {
     finish()
   }
 
-  /// On a row whose buttons take their own click: the last row (Ask and Open), "N stopped ›"
+  /// On a row whose buttons take their own click: the last row (Ask and Open), Activity links
   /// while it shows, or the waiting block while something waits.
   func isOnOpenRow(_ point: CGPoint, in bounds: CGRect) -> Bool {
     hover.isOpen && look.live
       && IslandCardMotion.isOnButtonRow(
-        point, in: bounds, card: size, stopped: island.processes.stoppedCount > 0,
+        point, in: bounds, card: size,
+        activityRows: island.processes.currentActivity.cardLines.count,
         waiting: island.processes.waitingStarts.count)
   }
 
@@ -568,7 +571,8 @@ struct MenuBarRouter: View {
 }
 
 /// The card under the item: the notch card's view and data (`UsageCardLive`), on the island's
-/// black, hanging from the menu bar, square at the top and round below.
+/// black, a few points under the menu bar and round at all four corners, as a macOS menu (N15).
+/// The notch card keeps its square top: it grows out of the notch.
 struct MenuBarCardLayout<Content: View>: View {
   let size: CGSize
   let look: IslandCardController.Look
@@ -580,7 +584,7 @@ struct MenuBarCardLayout<Content: View>: View {
       .background(BlitzUI.notchFill)
       .environment(\.colorScheme, .dark)
       .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-      .clipShape(IslandShape(radius: look.radius))
+      .clipShape(RoundedRectangle(cornerRadius: look.radius, style: .continuous))
       .opacity(look.fill)
   }
 }

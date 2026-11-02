@@ -41,7 +41,7 @@ final class IslandCardPanel: NSPanel {
 
 /// The card window's view: the tracking area over its whole frame (the notch at rest, the card
 /// open), and every click, which goes to the controller, except on the rows whose buttons take
-/// their own (Ask and Open, "N stopped ›", Start now). Otherwise the SwiftUI content draws only.
+/// their own (Ask and Open, Activity links, Start now). Otherwise the SwiftUI content draws only.
 final class IslandCardTrackingView: NSView {
   var onEnter: (() -> Void)?
   var onExit: (() -> Void)?
@@ -286,7 +286,7 @@ final class IslandCardController: ObservableObject {
     island.environment.openWindow(island, nil)
   }
 
-  /// The card's "N stopped ›" line (Q15): the window on Activity, where the Stopped list is.
+  /// A card Activity link opens the window on Activity.
   func openStopped() {
     guard let island else { return }
     hover.cancel()
@@ -304,12 +304,13 @@ final class IslandCardController: ObservableObject {
   }
 
   /// Whether `point`, in the card window's view of `bounds`, is on a row of the open card whose
-  /// buttons take their own click: the last row (Ask and Open), "N stopped ›" above it while it
+  /// buttons take their own click: the last row (Ask and Open), Activity links above it while they
   /// shows, or the waiting block while something waits.
   func isOnOpenRow(_ point: CGPoint, in bounds: CGRect) -> Bool {
     hover.isOpen && look.live
       && IslandCardMotion.isOnButtonRow(
-        point, in: bounds, card: size, stopped: (island?.processes.stoppedCount ?? 0) > 0,
+        point, in: bounds, card: size,
+        activityRows: island?.processes.currentActivity.cardLines.count ?? 0,
         waiting: island?.processes.waitingStarts.count ?? 0)
   }
 

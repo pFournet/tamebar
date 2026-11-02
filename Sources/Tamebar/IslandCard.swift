@@ -7,10 +7,12 @@ import Foundation
 /// What the card says (N11, N12, approved as mocked):
 ///
 /// ```
+/// │ ● Watching your Mac                   │
 /// │ Memory 2 GB free · Strain none        │
 /// │ Today: ended 3 · slowed 2 · 4 GB back │
 /// │ Waiting for memory (when any)         │
-/// │ 3 stopped ›                           │
+/// │ Slowed now: Claude · project A      › │
+/// │ 8 Codex plugins off · optional     › │
 /// │ [Ask Claude] [Ask Codex]       Open › │
 /// ```
 ///
@@ -18,6 +20,8 @@ import Foundation
 /// isn't a line of its own: the memory line turns orange (red at critical) with ⚠ and says it,
 /// so free memory shows once (N12).
 struct UsageCardContent: Equatable, Sendable {
+  /// "● Watching your Mac" at the top (N14): whether Tamebar's process scan is current.
+  let status: UsageCardStatus
   /// What is going on, first: the island's state as a line (`IslandState.cardLine`); nil when
   /// nothing is.
   let line: IslandCardLine?
@@ -31,8 +35,8 @@ struct UsageCardContent: Equatable, Sendable {
   /// "Today: ended 3 · slowed 2 · 4 GB back": what Tamebar did on its own today and the memory it
   /// freed, from the usage record (Q16); "Today: nothing yet" before anything.
   let today: String
-  /// "5 stopped", while Tamebar has stopped something that isn't back (Q15); nil otherwise.
-  let stopped: String?
+  /// Current slowed, paused, quit or off work; ended history is not shown here.
+  let activityLines: [String]
   /// Ask Claude, Ask Codex, left of Open: the tools installed (N8).
   let asks: [AskAgent]
   /// The new sessions waiting for memory at start (Q19), oldest first, each with Start now;
@@ -52,17 +56,20 @@ struct UsageCardContent: Equatable, Sendable {
   static let nothingToday = "Today: nothing yet"
 
   init(
-    snapshot: SystemSnapshot, now: Date, line: IslandCardLine? = nil, strain: CardStrain? = nil,
-    critical: Bool = false, today: UsageActions? = nil, stopped: Int = 0, asks: [AskAgent] = [],
+    snapshot: SystemSnapshot, now: Date, status: UsageCardStatus = .watching,
+    line: IslandCardLine? = nil, strain: CardStrain? = nil,
+    critical: Bool = false, today: UsageActions? = nil,
+    activity: CurrentActivity = .init(), asks: [AskAgent] = [],
     waiting: [StartWait.Registration] = []
   ) {
+    self.status = status
     self.line = line
     self.waiting = waiting.map {
       Waiting(
         id: $0.waitPID, label: $0.label, waited: StartWait.waited(now.timeIntervalSince($0.started))
       )
     }
-    self.stopped = stopped > 0 ? StoppedRows.line(count: stopped) : nil
+    activityLines = activity.cardLines
     self.asks = asks
     let struggling = strain?.struggling == true
     let state =
@@ -82,6 +89,37 @@ struct UsageCardContent: Equatable, Sendable {
     var parts = counts.filter { $0.1 > 0 }.map { "\($0.0) \($0.1)" }
     if actions.freedBytes > 0 { parts.append("\(ByteText.compact(actions.freedBytes)) back") }
     return parts.isEmpty ? nothingToday : "Today: " + parts.joined(separator: " · ")
+  }
+}
+
+/// The card's top line (N14, 2026-11-02: "a status like observing your Mac … with a green dot to
+/// show the app is running"). Green "Watching your Mac" while the process scan is current; gray
+/// once the last scan is older than `staleAfter`, so the dot means Tamebar is checking now, not
+/// just that its window exists. Scans run every 5 to 15 s, longer under pressure.
+struct UsageCardStatus: Equatable, Sendable {
+  let text: String
+  let live: Bool
+
+  static let staleAfter: TimeInterval = 60
+  static let watching = Self(text: "Watching your Mac", live: true)
+  static let starting = Self(text: "Starting", live: false)
+
+  init(text: String, live: Bool) {
+    self.text = text
+    self.live = live
+  }
+
+  /// From the last applied scan; nil before the first one.
+  init(scannedAt: Date?, now: Date) {
+    guard let scannedAt else {
+      self = .starting
+      return
+    }
+    let age = now.timeIntervalSince(scannedAt)
+    self =
+      age <= Self.staleAfter
+      ? .watching
+      : .init(text: "Not updating · last check \(StartWait.waited(age)) ago", live: false)
   }
 }
 
@@ -243,33 +281,37 @@ enum IslandCardMotion {
       height: UsageCardView.actionRowHeight)
   }
 
-  /// Where the "N stopped ›" line is: above its divider, over the last row.
-  static func stoppedRow(in bounds: CGRect, card: CGSize) -> CGRect {
+  /// Where the live Activity links are: above the last row and its divider.
+  static func activityRows(in bounds: CGRect, card: CGSize, count: Int) -> CGRect {
     let below = actionRow(in: bounds, card: card)
     return CGRect(
       x: below.minX, y: below.maxY + 1, width: below.width,
-      height: UsageCardView.stoppedRowHeight)
+      height: UsageCardView.activityRowHeight * CGFloat(count) + CGFloat(max(0, count - 1)))
   }
 
-  /// Where the "Waiting for memory" block is (Q19): above its divider, over the stopped line
+  /// Where the "Waiting for memory" block is (Q19): above its divider, over the Activity links
   /// when the card shows it, else over the last row.
-  static func waitingBlock(in bounds: CGRect, card: CGSize, stopped: Bool, count: Int) -> CGRect {
+  static func waitingBlock(in bounds: CGRect, card: CGSize, activityRows: Int, count: Int) -> CGRect
+  {
     let below =
-      stopped ? stoppedRow(in: bounds, card: card) : actionRow(in: bounds, card: card)
+      activityRows > 0
+      ? self.activityRows(in: bounds, card: card, count: activityRows)
+      : actionRow(in: bounds, card: card)
     return CGRect(
       x: below.minX, y: below.maxY + 1, width: below.width,
       height: UsageCardView.waitingHeight(count))
   }
 
-  /// On the last row (Ask and Open), on the stopped line when the card shows it, or on the
+  /// On the last row (Ask and Open), on the Activity links when the card shows them, or on the
   /// waiting block (its Start now buttons) while something waits: their buttons take the click.
   static func isOnButtonRow(
-    _ point: CGPoint, in bounds: CGRect, card: CGSize, stopped: Bool, waiting: Int = 0
+    _ point: CGPoint, in bounds: CGRect, card: CGSize, activityRows: Int, waiting: Int = 0
   ) -> Bool {
     actionRow(in: bounds, card: card).contains(point)
-      || (stopped && stoppedRow(in: bounds, card: card).contains(point))
+      || (activityRows > 0
+        && self.activityRows(in: bounds, card: card, count: activityRows).contains(point))
       || (waiting > 0
-        && waitingBlock(in: bounds, card: card, stopped: stopped, count: waiting)
+        && waitingBlock(in: bounds, card: card, activityRows: activityRows, count: waiting)
           .contains(point))
   }
 

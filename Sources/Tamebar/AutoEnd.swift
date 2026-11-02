@@ -320,63 +320,6 @@ enum BackgroundJobs {
   }
 }
 
-/// The model-side glue between a scan and `AutoEndScheduler`.
-enum AutoEndWiring {
-  struct Scan {
-    let threads: [AIThread]
-    let unused: [String: UnusedPolicy.Reason]
-    let protections: [String: UnusedPolicy.Protection]
-    /// The root PIDs Tamebar may act on: the e2e targets. Nil outside e2e mode.
-    let scope: Set<Int32>?
-    /// Threads with a signal in flight.
-    let inFlight: Set<String>
-    /// The scan's `ps` records by PID, for `BackgroundJobs`.
-    var records: [Int32: RawProcessRecord] = [:]
-  }
-
-  /// Every unused session Tamebar may act on, with its reason and protection: in scope, not
-  /// paused (a stopped process can't take a Quit), with no signal in flight, and `endable`. The
-  /// scheduler picks among them.
-  static func candidates(_ scan: Scan) -> [AutoEndScheduler.Candidate] {
-    var seen: Set<String> = []
-    return scan.threads.compactMap { thread in
-      guard seen.insert(thread.id).inserted, let reason = scan.unused[thread.id],
-        !thread.isPaused, !scan.inFlight.contains(thread.id),
-        AutoPauseWiring.inScope(thread, scope: scan.scope),
-        endable(thread, records: scan.records)
-      else { return nil }
-      return .init(
-        id: thread.id, reason: reason, memoryBytes: thread.memoryBytes,
-        protected: scan.protections[thread.id] != nil)
-    }
-  }
-
-  /// Ending it automatically leaves a way back: it gets an Ended sessions entry with a resume
-  /// command (Q10). A session without one (no session id, or a Codex session in ~, /tmp or a dot
-  /// folder, which has no folder to resume in) is only ever a manual offer in the panel.
-  static func resumable(_ thread: AIThread) -> Bool {
-    EndPlan.entry(thread, now: .distantPast)?.resumeCommand != nil
-  }
-
-  /// What only an automatic end requires, beyond the unused and protection rules every end has:
-  /// the session is resumable and has no background job running.
-  static func endable(_ thread: AIThread, records: [Int32: RawProcessRecord]) -> Bool {
-    resumable(thread) && BackgroundJobs.job(thread, records: records) == nil
-  }
-
-  /// The click-time plan (`EndPlan.plan`) for an automatic end, against the fresh scan's records:
-  /// a session that is no longer `endable` counts as became active, and gets no signal.
-  static func recheck(_ plan: EndPlan.Decision, records: [Int32: RawProcessRecord])
-    -> EndPlan.Decision
-  {
-    var plan = plan
-    let kept = plan.end.filter { endable($0, records: records) }
-    plan.becameActive += plan.end.count - kept.count
-    plan.end = kept
-    return plan
-  }
-}
-
 /// Runs the scheduler on each scan and ends what it picks through the model's `endUnused`, which
 /// waits for a fresh scan, re-checks the session (Q7) and records it in Ended sessions. It acts
 /// only in the instance whose automatic pause acts: the installed build holding `autopause.lock`.
@@ -398,7 +341,7 @@ final class AutoEndController {
     let now: Date
     let away: Bool
     let settings: AutoEndSettings
-    let scan: AutoEndWiring.Scan
+    let scan: SessionEligibility.AutoEndScan
     /// The user is ending sessions from a review: nothing new starts meanwhile.
     var busy = false
   }
@@ -413,7 +356,7 @@ final class AutoEndController {
 
   func run(_ tick: Tick) -> Outcome {
     guard acts else { return Outcome() }
-    let candidates = tick.busy ? [] : AutoEndWiring.candidates(tick.scan)
+    let candidates = tick.busy ? [] : SessionEligibility.autoEndCandidates(tick.scan)
     let step = scheduler.step(
       .init(now: tick.now, away: tick.away, settings: tick.settings, candidates: candidates))
     var outcome = Outcome(note: step.note)

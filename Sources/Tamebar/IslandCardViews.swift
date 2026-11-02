@@ -5,13 +5,13 @@ import SwiftUI
 /// divider and no accent fill.
 
 /// The approved layout (N11): the event going on, the memory and strain line and what Tamebar did
-/// today, the sessions waiting for memory when any, "N stopped ›", then Ask Claude / Ask Codex and
+/// today, the sessions waiting for memory when any, current Activity links, then Ask Claude / Ask Codex and
 /// Open ›.
 struct UsageCardView: View {
   let content: UsageCardContent
   /// Open ›: the window; the renders leave it empty.
   var openApp: @MainActor () -> Void = {}
-  /// The "N stopped ›" line's action: the window on Activity.
+  /// A current Activity line's action: the window on Activity.
   var openStopped: @MainActor () -> Void = {}
   /// Ask Claude / Ask Codex's action (N8): Terminal running the tool, then the card closes.
   var ask: @MainActor (AskAgent) -> Void = { _ in }
@@ -21,17 +21,16 @@ struct UsageCardView: View {
   static let openTitle = "Open"
   /// The last row's height, Ask and Open: the card's last points, where the row's buttons take the
   /// click instead of the card (`IslandCardMotion.actionRow`).
-  static let actionRowHeight: CGFloat = 40
-  /// The "N stopped ›" line's height, right above the last row's divider
-  /// (`IslandCardMotion.stoppedRow`).
-  static let stoppedRowHeight: CGFloat = 30
+  nonisolated static let actionRowHeight: CGFloat = 40
+  /// Each current Activity line's height, right above the last row's divider.
+  nonisolated static let activityRowHeight: CGFloat = 30
   /// The "Waiting for memory" block (Q19): its title, one row per session, and its last line,
-  /// right above the stopped line (`IslandCardMotion.waitingBlock`).
-  static let waitingTitleHeight: CGFloat = 26
-  static let waitingRowHeight: CGFloat = 28
-  static let waitingFooterHeight: CGFloat = 26
+  /// right above the Activity links (`IslandCardMotion.waitingBlock`).
+  nonisolated static let waitingTitleHeight: CGFloat = 26
+  nonisolated static let waitingRowHeight: CGFloat = 28
+  nonisolated static let waitingFooterHeight: CGFloat = 26
 
-  static func waitingHeight(_ rows: Int) -> CGFloat {
+  nonisolated static func waitingHeight(_ rows: Int) -> CGFloat {
     waitingTitleHeight + CGFloat(rows) * waitingRowHeight + waitingFooterHeight
   }
 
@@ -42,8 +41,8 @@ struct UsageCardView: View {
         UsageCardWaitingBlock(rows: content.waiting, action: startNow)
         Rectangle().fill(BlitzUI.separator).frame(height: 1)
       }
-      if let stopped = content.stopped {
-        UsageCardStoppedRow(text: stopped, action: openStopped)
+      ForEach(content.activityLines, id: \.self) { line in
+        UsageCardActivityRow(text: line, action: openStopped)
         Rectangle().fill(BlitzUI.separator).frame(height: 1)
       }
       UsageCardActionRow(agents: content.asks, ask: ask, open: openApp)
@@ -53,6 +52,7 @@ struct UsageCardView: View {
 
   private var usage: some View {
     VStack(alignment: .leading, spacing: 0) {
+      UsageCardStatusLine(status: content.status).padding(.top, 8)
       if let line = content.line {
         IslandCardStateLine(line: line).padding(.top, 8).padding(.bottom, 10)
         Rectangle().fill(BlitzUI.separator).frame(height: 1)
@@ -62,12 +62,26 @@ struct UsageCardView: View {
         Text(content.today).font(BlitzType.caption).monospacedDigit()
           .foregroundStyle(BlitzUI.secondaryText).lineLimit(1).truncationMode(.tail)
       }
-      .padding(.top, content.line == nil ? 8 : 10).padding(.bottom, 10)
+      .padding(.top, content.line == nil ? 6 : 10).padding(.bottom, 10)
       Rectangle().fill(BlitzUI.separator).frame(height: 1)
     }
     .padding(.horizontal, NotchGeometry.wingPadding)
     .frame(maxWidth: .infinity, alignment: .leading)
     .accessibilityElement(children: .combine)
+  }
+}
+
+/// The card's top line (N14): a green dot and "Watching your Mac" while the scan is current, a
+/// gray dot and "Not updating · last check 2m ago" once it isn't.
+struct UsageCardStatusLine: View {
+  let status: UsageCardStatus
+
+  var body: some View {
+    HStack(spacing: 6) {
+      BlitzStatusDot(tone: status.live ? .good : .muted, diameter: 7)
+      Text(status.text).font(BlitzType.caption).foregroundStyle(BlitzUI.secondaryText)
+        .lineLimit(1).truncationMode(.tail)
+    }
   }
 }
 
@@ -165,17 +179,14 @@ struct UsageCardWaitingBlock: View {
   }
 }
 
-/// "5 stopped ›" (Q15): what Tamebar stopped and isn't back, a quiet full-width row, its words on
-/// the left as the card's lines are. It opens the window on Activity, where the Stopped list is.
-struct UsageCardStoppedRow: View {
+/// A live Activity status, linking to the details in the window.
+struct UsageCardActivityRow: View {
   let text: String
   let action: @MainActor () -> Void
 
   var body: some View {
     Button(action: action) {
       HStack(spacing: 6) {
-        Image(systemName: "pause.circle").font(.system(size: 12, weight: .semibold))
-          .foregroundStyle(BlitzUI.secondaryText).accessibilityHidden(true)
         Text(text).font(BlitzType.label).monospacedDigit().foregroundStyle(BlitzUI.onNotch)
         Spacer(minLength: 0)
         Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
@@ -183,11 +194,11 @@ struct UsageCardStoppedRow: View {
       }
       .lineLimit(1)
       .padding(.horizontal, NotchGeometry.wingPadding)
-      .frame(maxWidth: .infinity).frame(height: UsageCardView.stoppedRowHeight)
+      .frame(maxWidth: .infinity).frame(height: UsageCardView.activityRowHeight)
       .contentShape(Rectangle())
     }
     .buttonStyle(BlitzRowButtonStyle())
-    .accessibilityLabel("\(text), show them")
+    .accessibilityLabel("\(text), show Activity")
   }
 }
 
@@ -217,7 +228,7 @@ struct UsageCardLive: View {
   /// Open ›: the notch card's, unless the menu-bar item's card gives its own (the same route,
   /// closing that card).
   var openApp: (@MainActor () -> Void)? = nil
-  /// The "N stopped ›" line's action: the notch card's, unless the menu-bar item's card gives
+  /// Current Activity links' action: the notch card's, unless the menu-bar item's card gives
   /// its own.
   var openStopped: (@MainActor () -> Void)? = nil
   /// Ask Claude / Ask Codex: the notch card's, unless the menu-bar item's card gives its own.
@@ -240,13 +251,20 @@ struct UsageCardLive: View {
   }
 
   var body: some View {
-    let now = Date.now
+    // Ticks on its own so a stalled scan turns the status gray without any other publish.
+    TimelineView(.periodic(from: .now, by: 10)) { context in
+      card(now: context.date)
+    }
+  }
+
+  private func card(now: Date) -> some View {
     UsageCardView(
       content: .init(
-        snapshot: monitor.snapshot, now: now, line: island.card.cardLine,
+        snapshot: monitor.snapshot, now: now,
+        status: .init(scannedAt: processes.scannedAt, now: now), line: island.card.cardLine,
         strain: processes.strain, critical: processes.pressure.memoryRisk >= .critical,
         today: processes.usageTrend.actions(on: now),
-        stopped: processes.stoppedCount, asks: agents.installed,
+        activity: processes.currentActivity, asks: agents.installed,
         waiting: processes.waitingStarts),
       openApp: openApp ?? island.card.openApp,
       openStopped: openStopped ?? island.card.openStopped,

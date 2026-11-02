@@ -35,7 +35,9 @@ struct DesignRenderTests {
       toolbar(.activity)
       ScrollView {
         VStack(alignment: .leading, spacing: 20) {
-          StoppedListView(entries: Self.stoppedEntries(now: now), now: now)
+          CurrentActivityView(
+            entries: Self.stoppedEntries(now: now),
+            slowed: [.init(id: "ai:1", name: "Claude · project A", kind: .session)], now: now)
           UsageTrendCard(data: Self.trendData(now: now), now: now)
         }
         .frame(maxWidth: .infinity, alignment: .leading).padding(WindowMetrics.padding)
@@ -177,11 +179,11 @@ struct DesignRenderTests {
     let now = Date.now
     let entries = Self.stoppedEntries(now: now)
     let renders: [(name: String, entries: [StoppedEntry], copied: String?, busy: Set<String>)] = [
-      ("Stopped", entries, nil, []), ("Stopped copied", entries, "e", ["p"]),
-      ("Stopped empty", [], nil, []),
+      ("Activity", entries, nil, []), ("Activity copied", entries, "a", ["p"]),
+      ("Activity empty", [], nil, []),
     ]
     for render in renders {
-      let list = StoppedListView(
+      let list = CurrentActivityView(
         entries: render.entries, busy: render.busy, now: now, copiedID: render.copied
       )
       .padding(12).frame(width: 480)
@@ -267,33 +269,38 @@ struct DesignRenderTests {
       (
         "Island card today", .hidden,
         .init(
-          snapshot: calm, now: now, strain: none, today: today, stopped: 3,
+          snapshot: calm, now: now, strain: none, today: today,
+          activity: .init(
+            stopped: Self.stoppedEntries(now: now),
+            slowed: [.init(id: "ai:1", name: "Claude · project A", kind: .session)]),
           asks: [.claude, .codex])
       ),
       (
         "Island card call", call,
         .init(
           snapshot: calm, now: now, line: call.cardLine, strain: none, today: today,
-          stopped: 2, asks: [.claude])
+          activity: .init(stopped: Self.stoppedEntries(now: now)), asks: [.claude])
       ),
       (
         "Island card pressure", struggling,
         .init(
           snapshot: snapshot(.warning, free: 1_100_000_000), now: now,
-          line: struggling.cardLine, strain: fan, today: today, stopped: 3,
+          line: struggling.cardLine, strain: fan, today: today,
+          activity: .init(stopped: Self.stoppedEntries(now: now)),
           asks: [.claude, .codex])
       ),
       (
         "Island card critical", critical,
         .init(
           snapshot: snapshot(.critical, free: 600_000_000), now: now, line: critical.cardLine,
-          strain: nil, critical: true, today: today, stopped: 3, asks: [.claude, .codex])
+          strain: nil, critical: true, today: today,
+          activity: .init(stopped: Self.stoppedEntries(now: now)), asks: [.claude, .codex])
       ),
       (
         "Island card waiting", .hidden,
         .init(
           snapshot: snapshot(.warning, free: 900_000_000), now: now, strain: fan, today: today,
-          stopped: 2, asks: [.claude, .codex],
+          activity: .init(stopped: Self.stoppedEntries(now: now)), asks: [.claude, .codex],
           waiting: [
             .init(
               waitPID: 4250, tool: "claude", project: "dashboard-app",
@@ -370,7 +377,8 @@ struct DesignRenderTests {
     today.freedBytes = 4_000_000_000
     let content = UsageCardContent(
       snapshot: snapshot, now: now, line: call.cardLine,
-      strain: .init(struggling: false, signals: []), today: today, stopped: 3,
+      strain: .init(struggling: false, signals: []), today: today,
+      activity: .init(stopped: Self.stoppedEntries(now: now)),
       asks: [.claude, .codex])
     let label = MenuBarItemLabel(call, colored: true)
     // A 900-point screen whose menu bar is 24 points tall, the item 520 points in.
