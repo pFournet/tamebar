@@ -83,7 +83,7 @@ else
     NOTES="Tamebar $VERSION for macOS 14 or later, Apple silicon and Intel.
 
 \`\`\`sh
-brew install --cask pfournet/tamebar/tamebar
+brew trust pfournet/tamebar && brew install --cask pfournet/tamebar/tamebar
 # or, without Homebrew:
 curl -fsSL https://raw.githubusercontent.com/$RELEASE_REPO/main/install.sh | sh
 \`\`\`

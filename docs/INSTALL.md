@@ -19,7 +19,7 @@ of [install.sh](../install.sh).
 With Homebrew:
 
 ```sh
-brew install --cask pfournet/tamebar/tamebar
+brew trust pfournet/tamebar && brew install --cask pfournet/tamebar/tamebar
 ```
 
 The cask links `tamebar` into Homebrew's `bin`. Update with `brew upgrade --cask tamebar`.

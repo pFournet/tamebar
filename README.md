@@ -5,7 +5,7 @@ Keeps your Mac calm while AI coding agents run.
 ```sh
 curl -fsSL https://raw.githubusercontent.com/pFournet/tamebar/main/install.sh | sh
 ```
-or `brew install --cask pfournet/tamebar/tamebar`
+or `brew trust pfournet/tamebar && brew install --cask pfournet/tamebar/tamebar`
 
 <img src="assets/readme/call.gif" width="800" alt="A video call lags while AI agents run; Tamebar pauses the idle agents and slows the busy one, and the call clears.">
 

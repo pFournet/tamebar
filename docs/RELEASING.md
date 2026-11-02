@@ -17,7 +17,7 @@ Neither repository has GitHub Actions workflows.
 ```sh
 curl -fsSL https://raw.githubusercontent.com/pFournet/tamebar/main/install.sh | sh
 # or
-brew install --cask pfournet/tamebar/tamebar
+brew trust pfournet/tamebar && brew install --cask pfournet/tamebar/tamebar
 ```
 
 Both put `tamebar` on PATH and replace a running copy. Updates are `brew upgrade --cask tamebar` or running
